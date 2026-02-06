@@ -1,0 +1,22 @@
+name: flutter_virtual_keyboard
+description: A flexible and customizable virtual controller package for Flutter.
+version: 0.1.0
+homepage: https://github.com/example/flutter_virtual_keyboard
+repository: https://github.com/example/flutter_virtual_keyboard
+issue_tracker: https://github.com/example/flutter_virtual_keyboard/issues
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  shaders:
+    - lib/shaders/d_pad.frag
