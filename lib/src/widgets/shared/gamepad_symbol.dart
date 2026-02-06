@@ -144,7 +144,7 @@ class GamepadSymbol extends StatelessWidget {
           height: 1.0, // Tighter line height
           shadows: [
             Shadow(
-              color: defaultColor.withOpacity(0.5),
+              color: defaultColor.withValues(alpha: 0.5),
               blurRadius: size * 0.3,
             ),
             Shadow(
@@ -167,7 +167,7 @@ class GamepadSymbol extends StatelessWidget {
         color: color ?? defaultColor,
         shadows: [
           Shadow(
-            color: defaultColor.withOpacity(0.5),
+            color: defaultColor.withValues(alpha: 0.5),
             blurRadius: size * 0.3,
           ),
           Shadow(
@@ -210,7 +210,7 @@ class _GamepadShapePainter extends CustomPainter {
 
     // Add glow
     final glowPaint = Paint()
-      ..color = color.withOpacity(0.4)
+      ..color = color.withValues(alpha: 0.4)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4)
       ..style = PaintingStyle.stroke
       ..strokeWidth = size.width * 0.08;

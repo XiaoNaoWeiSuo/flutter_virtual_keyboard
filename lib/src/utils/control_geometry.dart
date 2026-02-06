@@ -1,7 +1,5 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import '../models/style/control_layout.dart';
-import '../models/style/control_style.dart';
 import '../models/virtual_controller_models.dart';
 
 class ControlGeometry {

@@ -144,31 +144,6 @@ class _VirtualControllerLayoutEditorState
     }
   }
 
-  Future<void> _openPalette() async {
-    final c = _controller;
-    if (c == null) return;
-    if (widget.readOnly || !widget.allowAddRemove) return;
-
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.55,
-      ),
-      builder: (context) {
-        return VirtualControllerLayoutEditorPalette(
-          tab: widget.initialPaletteTab,
-          previewDecorator: widget.previewDecorator,
-          onAddControl: (control) {
-            c.addControl(control);
-            Navigator.of(context).pop();
-          },
-        );
-      },
-    );
-  }
-
   Future<void> _openPaletteFor(VirtualControllerEditorPaletteTab tab) async {
     final c = _controller;
     if (c == null) return;

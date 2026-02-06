@@ -7,7 +7,6 @@ import '../widgets/controls/button_widget.dart';
 import '../widgets/controls/custom_widget.dart';
 import '../widgets/controls/dpad_widget.dart';
 import '../widgets/controls/joystick_widget.dart';
-import '../widgets/controls/key_widget.dart';
 import '../widgets/controls/mouse_button_widget.dart';
 import '../widgets/controls/mouse_wheel_widget.dart';
 import '../widgets/controls/scroll_stick_widget.dart';

@@ -101,12 +101,6 @@ class _ColorJsonCodec {
     final normalized = s.startsWith('#') ? s.substring(1) : s;
     return int.tryParse(normalized, radix: 16);
   }
-}    final withPrefix =
-        normalized.startsWith('0x') || normalized.startsWith('0X')
-            ? normalized
-            : '0x$normalized';
-    return int.tryParse(withPrefix);
-  }
 }
 
 class _BoxFitJsonCodec {
@@ -169,8 +163,9 @@ class _TextStyleJsonCodec {
 class _FontWeightJsonCodec {
   static FontWeight? decode(Object? v) {
     if (v == null) return null;
-    if (v is int)
+    if (v is int) {
       return FontWeight.values[v.clamp(0, FontWeight.values.length - 1)];
+    }
     final s = v.toString().trim().toLowerCase();
     if (s.isEmpty) return null;
     if (s.startsWith('w')) {

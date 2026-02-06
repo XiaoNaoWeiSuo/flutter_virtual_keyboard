@@ -109,10 +109,10 @@ class _VirtualScrollStickWidgetState extends State<VirtualScrollStickWidget> {
 
     final defaultColor = backgroundImage != null
         ? Colors.transparent
-        : Colors.grey.withOpacity(0.3);
+        : Colors.grey.withValues(alpha: 0.3);
     final defaultPressedColor = backgroundImage != null
         ? Colors.transparent
-        : Colors.blue.withOpacity(0.2);
+        : Colors.blue.withValues(alpha: 0.2);
     final color = style.color ?? defaultColor;
     final pressedColor = style.pressedColor ?? defaultPressedColor;
     final activeColor = _isDragging ? pressedColor : color;
@@ -138,7 +138,7 @@ class _VirtualScrollStickWidgetState extends State<VirtualScrollStickWidget> {
               borderRadius: BorderRadius.circular(radius),
               border: Border.all(
                 color: style.borderColor ?? Colors.white30,
-                width: style.borderWidth ?? 2.0,
+                width: style.borderWidth,
               ),
               image: currentImage != null
                   ? DecorationImage(

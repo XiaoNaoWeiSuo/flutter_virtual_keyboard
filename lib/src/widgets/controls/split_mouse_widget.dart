@@ -169,8 +169,8 @@ class _SplitMousePainter extends CustomPainter {
         color: Colors.white,
         fontSize: radius * 0.5,
         fontWeight: FontWeight.w900,
-        shadows: [
-          const Shadow(
+        shadows: const [
+          Shadow(
             blurRadius: 2.0,
             color: Colors.black45,
             offset: Offset(1.0, 1.0),

@@ -1,6 +1,4 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import '../models/style/control_layout.dart';
 import '../models/virtual_controller_models.dart';
 import '../utils/control_geometry.dart';
 import 'resize_direction.dart';

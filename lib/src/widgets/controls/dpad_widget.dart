@@ -308,10 +308,10 @@ class _DpadPainter extends CustomPainter {
 
     final pathV = Path()
       ..addRRect(
-          RRect.fromRectAndRadius(verticalRect, Radius.circular(radius)));
+          RRect.fromRectAndRadius(verticalRect, const Radius.circular(radius)));
     final pathH = Path()
       ..addRRect(
-          RRect.fromRectAndRadius(horizontalRect, Radius.circular(radius)));
+          RRect.fromRectAndRadius(horizontalRect, const Radius.circular(radius)));
 
     final fullCrossPath = Path.combine(PathOperation.union, pathV, pathH);
 
@@ -357,20 +357,12 @@ class _DpadPainter extends CustomPainter {
 
       // Let's refine the mask geometry.
 
-      Offset rotate(Offset p, double rad) {
-        final c = math.cos(rad);
-        final s = math.sin(rad);
-        return Offset(p.dx * c - p.dy * s, p.dx * s + p.dy * c);
-      }
-
       // Right-pointing wedge template
       // Tip at (0,0).
       // P1 (big, -big), P2 (big, big).
       // We want to round the tip.
       // Start at (tipRadius, -tipRadius) -> Arc to (tipRadius, tipRadius)?
       // Or just move the tip back a bit and add a radius?
-
-      final rTip = rotate(Offset(0, 0), angle) + tip; // Current tip
 
       // Let's draw the wedge relative to (0,0) then rotate & translate.
       final wedgePath = Path();
@@ -424,7 +416,7 @@ class _DpadPainter extends CustomPainter {
 
       // Transform the wedge
       final matrix = Matrix4.identity()
-        ..translate(tip.dx, tip.dy)
+        ..setTranslationRaw(tip.dx, tip.dy, 0)
         ..rotateZ(angle);
 
       final transformedWedge = wedgePath.transform(matrix.storage);
@@ -445,15 +437,15 @@ class _DpadPainter extends CustomPainter {
         final bounds = path.getBounds();
         final btnCenter = bounds.center;
         final matrix = Matrix4.identity()
-          ..translate(btnCenter.dx, btnCenter.dy)
-          ..scale(0.92, 0.92)
-          ..translate(-btnCenter.dx, -btnCenter.dy);
+          ..setTranslationRaw(btnCenter.dx, btnCenter.dy, 0)
+          ..multiply(Matrix4.diagonal3Values(0.92, 0.92, 1.0))
+          ..setTranslationRaw(-btnCenter.dx, -btnCenter.dy, 0);
         path = path.transform(matrix.storage);
       }
 
       // Draw Shadow
       if (style?.shadows != null && !isPressed) {
-        for (final shadow in style!.shadows!) {
+        for (final shadow in style!.shadows) {
           canvas.drawShadow(path, shadow.color, shadow.blurRadius, true);
         }
       }
@@ -462,7 +454,6 @@ class _DpadPainter extends CustomPainter {
       // Gradient from Tip (center) to End (outer)
       // We can use a RadialGradient centered at 'center' or LinearGradient along 'angle'.
       // Linear is better for directional buttons.
-      final bounds = path.getBounds();
       // Start point: near center (tip). End point: outer edge.
       // We can approximate start/end based on angle and size.
       final gradStart = center + shift * (gap * 2);
@@ -475,10 +466,10 @@ class _DpadPainter extends CustomPainter {
           [
             isPressed
                 ? pressedColor
-                : baseColor
-                    .withOpacity(0.6), // Near center (transparent/lighter)
+                : baseColor.withValues(
+                    alpha: 0.6), // Near center (transparent/lighter)
             isPressed
-                ? pressedColor.withOpacity(0.8)
+                ? pressedColor.withValues(alpha: 0.8)
                 : baseColor, // Outer edge (solid)
           ],
         )

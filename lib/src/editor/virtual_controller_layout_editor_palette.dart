@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
-import '../models/style/control_layout.dart';
 import '../models/virtual_controller_models.dart';
 import '../widgets/controls/button_widget.dart';
 import '../widgets/controls/dpad_widget.dart';
 import '../widgets/controls/joystick_widget.dart';
 import '../widgets/controls/key_widget.dart';
 import '../widgets/controls/mouse_button_widget.dart';
-import '../widgets/controls/mouse_wheel_widget.dart';
 import '../widgets/controls/scroll_stick_widget.dart';
 import '../widgets/controls/split_mouse_widget.dart';
 import 'editor_control_factory.dart';
@@ -523,43 +521,6 @@ class _GamepadPalette extends StatelessWidget {
           ],
         );
       },
-    );
-  }
-}
-
-class _SectionRow extends StatelessWidget {
-  const _SectionRow({required this.title, required this.children});
-
-  final String title;
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(bottom: 6),
-          child: Text(
-            title,
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-        SizedBox(
-          height: 56,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: children.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 10),
-            itemBuilder: (context, i) =>
-                SizedBox(width: 74, child: children[i]),
-          ),
-        ),
-      ],
     );
   }
 }
