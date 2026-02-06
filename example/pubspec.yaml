@@ -30,7 +30,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  flutter_virtual_keyboard:
+  virtual_gamepad_pro:
     path: ../
 
   # The following adds the Cupertino Icons font to your application.

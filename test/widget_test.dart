@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_virtual_keyboard/flutter_virtual_keyboard.dart';
+import 'package:virtual_gamepad_pro/virtual_gamepad_pro.dart';
 
 void main() {
   testWidgets('VirtualControllerOverlay builds correctly',

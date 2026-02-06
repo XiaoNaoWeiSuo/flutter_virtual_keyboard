@@ -1,8 +1,8 @@
 ## 0.1.0
 
-* Initial release.
-* Features:
-  * Virtual Controller Overlay with support for Keys, Joysticks, D-Pads, and more.
-  * Built-in Layout Editor Suite.
-  * Customizable styling and control configurations.
-  * Pure Flutter implementation.
+- Initial release of **Virtual Gamepad Pro**.
+- Includes:
+  - Virtual Joystick, D-Pad, Buttons, Mouse Controls.
+  - Runtime Layout Editor.
+  - JSON Serialization/Deserialization.
+  - Overlay Widget for easy integration.

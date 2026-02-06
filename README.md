@@ -1,6 +1,6 @@
-# Flutter Virtual Keyboard
+# Virtual Gamepad Pro
 
-A flexible virtual controller package for Flutter: keyboard keys, gamepad buttons, joysticks, D-Pad, mouse buttons, wheel, and a built-in **layout editor suite**. Designed for remote desktop / cloud gaming / streaming scenarios.
+Advanced virtual controller suite for Flutter: keyboard keys, gamepad buttons, joysticks, D-Pad, mouse buttons, wheel, and a built-in **layout editor suite**. Designed for remote desktop / cloud gaming / streaming scenarios.
 
 This package is pure Flutter (no native dependencies) and ships with a structured event system you can forward to your own input pipeline (WebRTC, sockets, etc.).
 
@@ -18,7 +18,7 @@ This package is pure Flutter (no native dependencies) and ships with a structure
 
 ```yaml
 dependencies:
-  flutter_virtual_keyboard: ^0.1.0
+  virtual_gamepad_pro: ^0.1.0
 ```
 
 ## Quick Start (Overlay)
@@ -27,7 +27,7 @@ Render controls with `VirtualControllerOverlay` and forward `InputEvent` to your
 
 ```dart
 import 'package:flutter/material.dart';
-import 'package:flutter_virtual_keyboard/flutter_virtual_keyboard.dart';
+import 'package:virtual_gamepad_pro/virtual_gamepad_pro.dart';
 
 class MyControllerPage extends StatelessWidget {
   const MyControllerPage({super.key});
@@ -94,7 +94,7 @@ The package provides a full-screen editor that works well in landscape. The edit
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_virtual_keyboard/flutter_virtual_keyboard.dart';
+import 'package:virtual_gamepad_pro/virtual_gamepad_pro.dart';
 
 class LayoutEditorPage extends StatelessWidget {
   const LayoutEditorPage({super.key, required this.layoutId});
