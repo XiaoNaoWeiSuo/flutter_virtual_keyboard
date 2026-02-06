@@ -41,7 +41,7 @@ class _VirtualDpadWidgetState extends State<VirtualDpadWidget> {
     try {
       // When running in an app (like example/), package assets need the package prefix.
       const assetKey =
-          'packages/flutter_virtual_keyboard/lib/shaders/d_pad.frag';
+          'packages/virtual_gamepad_pro/lib/shaders/d_pad.frag';
       final program = await ui.FragmentProgram.fromAsset(assetKey);
       if (mounted) {
         setState(() {

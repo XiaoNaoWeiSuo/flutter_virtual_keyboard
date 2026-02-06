@@ -2,7 +2,7 @@
 ///
 /// A pure Flutter implementation of a virtual keyboard/controller system.
 /// No external dependencies, no assets required.
-library flutter_virtual_keyboard;
+library virtual_gamepad_pro;
 
 export 'src/models/input_event.dart';
 export 'src/models/virtual_controller_models.dart';
