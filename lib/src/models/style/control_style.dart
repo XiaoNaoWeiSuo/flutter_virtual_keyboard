@@ -15,6 +15,7 @@ class ControlStyle {
     this.pressedColor,
     this.borderColor,
     this.pressedBorderColor,
+    this.lockedColor,
     this.borderWidth = 2.0,
     this.backgroundImage,
     this.pressedBackgroundImage,
@@ -50,6 +51,9 @@ class ControlStyle {
 
   /// The border color in pressed state.
   final Color? pressedBorderColor;
+
+  /// The color overlay when the control is in a locked state (e.g. joystick lock).
+  final Color? lockedColor;
 
   /// The width of the border.
   final double borderWidth;

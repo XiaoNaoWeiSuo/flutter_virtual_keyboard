@@ -51,6 +51,7 @@ class _VirtualJoystickWidgetState extends State<VirtualJoystickWidget> {
     final borderColor = style?.borderColor ?? Colors.white30;
     final borderWidth = style?.borderWidth ?? 2.0;
     final stickColor = style?.pressedColor ?? Colors.white.withAlpha(200);
+    final lockedColor = style?.lockedColor ?? Colors.cyanAccent;
 
     final backgroundImage =
         style?.backgroundImage ?? getImageProvider(style?.backgroundImagePath);
@@ -66,7 +67,7 @@ class _VirtualJoystickWidgetState extends State<VirtualJoystickWidget> {
           shape: BoxShape.circle,
           color: backgroundColor,
           border: Border.all(
-              color: _isLocked ? Colors.cyanAccent : borderColor,
+              color: _isLocked ? lockedColor : borderColor,
               width: borderWidth),
           image: backgroundImage != null
               ? DecorationImage(
@@ -83,7 +84,7 @@ class _VirtualJoystickWidgetState extends State<VirtualJoystickWidget> {
             angle: _currentAngle,
             magnitude: _currentMagnitude,
             color: _isLocked
-                ? Colors.cyanAccent
+                ? lockedColor
                 : (_lockTimer != null
                     ? Colors.yellowAccent
                     : borderColor.withAlpha(255)),
@@ -121,8 +122,8 @@ class _VirtualJoystickWidgetState extends State<VirtualJoystickWidget> {
                         : null,
                   ),
                   child: _isLocked
-                      ? const Icon(Icons.lock,
-                          color: Colors.cyanAccent, size: 14)
+                      ? Icon(Icons.lock,
+                          color: lockedColor, size: 14)
                       : null,
                 ),
               ),

@@ -14,6 +14,7 @@ class ControlStyleJsonCodec {
       borderColor: _ColorJsonCodec.maybeDecode(json['borderColor']),
       pressedBorderColor:
           _ColorJsonCodec.maybeDecode(json['pressedBorderColor']),
+      lockedColor: _ColorJsonCodec.maybeDecode(json['lockedColor']),
       borderWidth: (json['borderWidth'] as num? ?? 2.0).toDouble(),
       backgroundImagePath: _readString(json['backgroundImage']),
       pressedBackgroundImagePath: _readString(json['pressedBackgroundImage']),
@@ -58,6 +59,8 @@ class ControlStyleJsonCodec {
         'borderColor': _ColorJsonCodec.encode(style.borderColor!),
       if (style.pressedBorderColor != null)
         'pressedBorderColor': _ColorJsonCodec.encode(style.pressedBorderColor!),
+      if (style.lockedColor != null)
+        'lockedColor': _ColorJsonCodec.encode(style.lockedColor!),
       'borderWidth': style.borderWidth,
       if (bgPath != null) 'backgroundImage': bgPath,
       if (pressedBgPath != null) 'pressedBackgroundImage': pressedBgPath,

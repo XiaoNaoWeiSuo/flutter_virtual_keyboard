@@ -5,7 +5,25 @@ import 'virtual_controller_layout_editor_canvas.dart';
 import 'virtual_controller_layout_editor_controller.dart';
 import 'virtual_controller_layout_editor_palette.dart';
 
+/// A full-screen editor widget for creating and modifying virtual controller layouts.
+///
+/// This widget provides a complete UI for:
+/// * Visualizing the layout on a canvas.
+/// * Adding controls from a palette.
+/// * Moving and resizing controls via touch/drag.
+/// * Editing control properties (via double-tap).
+/// * Renaming the layout.
+/// * Saving and loading layouts via provided callbacks.
+///
+/// The editor is storage-agnostic. You must provide [load] and [save] callbacks
+/// to handle the persistence of [VirtualControllerLayout] objects (e.g., to SharedPreferences,
+/// local file system, or a remote server).
 class VirtualControllerLayoutEditor extends StatefulWidget {
+  /// Creates an editor instance.
+  ///
+  /// [layoutId] is the unique identifier for the layout to be edited.
+  /// [load] is called to retrieve the initial layout state.
+  /// [save] is called when the user triggers a save action.
   const VirtualControllerLayoutEditor({
     super.key,
     required this.layoutId,
@@ -27,20 +45,43 @@ class VirtualControllerLayoutEditor extends StatefulWidget {
     this.initialPaletteTab = VirtualControllerEditorPaletteTab.keyboard,
   });
 
+  /// The ID of the layout to edit. Passed to [load] and [save].
   final String layoutId;
+
+  /// Callback to load the layout. Must return a [VirtualControllerLayout].
   final Future<VirtualControllerLayout> Function(String layoutId) load;
+
+  /// Callback to save the layout.
   final Future<void> Function(String layoutId, VirtualControllerLayout layout)
       save;
+
+  /// Optional decorator to modify the layout before previewing in the palette.
+  /// Useful for applying global themes to palette items.
   final VirtualControllerLayout Function(VirtualControllerLayout layout)?
       previewDecorator;
+
+  /// Called when the user taps the close button.
   final VoidCallback? onClose;
 
+  /// If true, the editor is in read-only mode (viewing only).
   final bool readOnly;
+
+  /// Whether adding/removing controls is allowed.
   final bool allowAddRemove;
+
+  /// Whether resizing controls is allowed.
   final bool allowResize;
+
+  /// Whether moving controls is allowed.
   final bool allowMove;
+
+  /// Whether renaming the layout is allowed.
   final bool allowRename;
+
+  /// The set of tabs to show in the control palette.
   final Set<VirtualControllerEditorPaletteTab> enabledPaletteTabs;
+
+  /// The initially selected tab in the palette.
   final VirtualControllerEditorPaletteTab initialPaletteTab;
 
   @override

@@ -1,6 +1,6 @@
 name: virtual_gamepad_pro
 description: "Advanced virtual controller suite: joystick, d-pad, buttons, and runtime layout editor with JSON serialization. Optimized for remote play."
-version: 0.1.0
+version: 0.1.1
 homepage: https://github.com/XiaoNaoWeiSuo/flutter_virtual_keyboard
 repository: https://github.com/XiaoNaoWeiSuo/flutter_virtual_keyboard
 issue_tracker: https://github.com/XiaoNaoWeiSuo/flutter_virtual_keyboard/issues
