@@ -42,7 +42,7 @@ Add this to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  virtual_gamepad_pro: ^0.1.1
+  virtual_gamepad_pro: ^0.1.2
 ```
 
 ---
