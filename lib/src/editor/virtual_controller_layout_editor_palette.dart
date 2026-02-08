@@ -33,39 +33,45 @@ class VirtualControllerLayoutEditorPalette extends StatelessWidget {
       child: Align(
         alignment: Alignment.bottomCenter,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 8),
           child: SafeArea(
             top: false,
             bottom: false,
-            child: Container(
-              decoration: const BoxDecoration(
-                color: Color(0xFF1C1C1E),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth:
+                    (MediaQuery.of(context).size.width - 16).clamp(0, 720),
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const SizedBox(height: 8),
-                  Container(
-                    width: 44,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.white24,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Flexible(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(10, 2, 10, 8),
-                      child: _Body(
-                        tab: tab,
-                        previewMap: previewMap,
-                        onAddControl: onAddControl,
+              child: Container(
+                decoration: const BoxDecoration(
+                  color: Color(0xFF1C1C1E),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(height: 8),
+                    Container(
+                      width: 44,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.white24,
+                        borderRadius: BorderRadius.circular(2),
                       ),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 6),
+                    Flexible(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(8, 2, 8, 8),
+                        child: _Body(
+                          tab: tab,
+                          previewMap: previewMap,
+                          onAddControl: onAddControl,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -103,7 +109,8 @@ class _Body extends StatelessWidget {
     return switch (tab) {
       VirtualControllerEditorPaletteTab.keyboard => _KeyboardPalette(
           previewMap: previewMap,
-          onAdd: (k) => onAddControl(EditorControlFactory.key(k)),
+          onAdd: (k) => onAddControl(EditorControlFactory.keyWith(
+              key: k.key, label: k.label, modifiers: k.modifiers)),
         ),
       VirtualControllerEditorPaletteTab.mouseAndJoystick =>
         _MouseJoystickPalette(
@@ -112,12 +119,34 @@ class _Body extends StatelessWidget {
         ),
       VirtualControllerEditorPaletteTab.xbox => _GamepadPalette(
           previewMap: previewMap,
-          onAdd: (l) => onAddControl(EditorControlFactory.gamepadButton(l)),
+          onAdd: (l) {
+            switch (l) {
+              case 'Dpad':
+                onAddControl(EditorControlFactory.dpad());
+              case 'LS':
+                onAddControl(EditorControlFactory.gamepadLeftStick());
+              case 'RS':
+                onAddControl(EditorControlFactory.gamepadRightStick());
+              default:
+                onAddControl(EditorControlFactory.gamepadButton(l));
+            }
+          },
           isPs: false,
         ),
       VirtualControllerEditorPaletteTab.ps => _GamepadPalette(
           previewMap: previewMap,
-          onAdd: (l) => onAddControl(EditorControlFactory.gamepadButton(l)),
+          onAdd: (l) {
+            switch (l) {
+              case 'Dpad':
+                onAddControl(EditorControlFactory.dpad());
+              case 'LS':
+                onAddControl(EditorControlFactory.gamepadLeftStick());
+              case 'RS':
+                onAddControl(EditorControlFactory.gamepadRightStick());
+              default:
+                onAddControl(EditorControlFactory.gamepadButton(l));
+            }
+          },
           isPs: true,
         ),
     };
@@ -127,33 +156,26 @@ class _Body extends StatelessWidget {
 class _KeyboardPalette extends StatelessWidget {
   const _KeyboardPalette({required this.previewMap, required this.onAdd});
   final Map<String, VirtualControl> previewMap;
-  final ValueChanged<String> onAdd;
+  final ValueChanged<_KeySpec> onAdd;
 
   @override
   Widget build(BuildContext context) {
     final rows = _keyboardRows();
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        const spacing = 2.0;
-        final rowCount = rows.length;
-        final rowHeight =
-            (constraints.maxHeight - spacing * (rowCount - 1)) / rowCount;
-
-        return Column(
-          children: [
-            for (var i = 0; i < rows.length; i++) ...[
-              SizedBox(
-                height: rowHeight > 44.0 ? 44.0 : rowHeight,
-                child: _KeyboardRow(
-                  keys: rows[i],
-                  previewMap: previewMap,
-                  onAdd: onAdd,
-                  gap: 2,
-                ),
-              ),
-              if (i != rows.length - 1) const SizedBox(height: spacing),
-            ],
-          ],
+    const spacing = 1.0;
+    const rowHeight = 36.0;
+    return ListView.separated(
+      padding: EdgeInsets.zero,
+      itemCount: rows.length,
+      separatorBuilder: (_, __) => const SizedBox(height: spacing),
+      itemBuilder: (context, i) {
+        return SizedBox(
+          height: rowHeight,
+          child: _KeyboardRow(
+            keys: rows[i],
+            previewMap: previewMap,
+            onAdd: onAdd,
+            gap: 1,
+          ),
         );
       },
     );
@@ -170,29 +192,28 @@ class _KeyboardRow extends StatelessWidget {
 
   final List<_KeySpec> keys;
   final Map<String, VirtualControl> previewMap;
-  final ValueChanged<String> onAdd;
+  final ValueChanged<_KeySpec> onAdd;
   final double gap;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      child: Row(
-        children: [
-          for (var i = 0; i < keys.length; i++) ...[
-            Expanded(
-              flex: keys[i].flex,
-              child: Padding(
-                padding: EdgeInsets.only(right: i == keys.length - 1 ? 0 : gap),
-                child: _PaletteTile(
-                  onTap: () => onAdd(keys[i].label),
-                  child: _renderKey(
-                      previewMap['kbd_${keys[i].id}'] as VirtualKey?),
-                ),
+    return Row(
+      children: [
+        for (var i = 0; i < keys.length; i++) ...[
+          Expanded(
+            flex: keys[i].flex,
+            child: Padding(
+              padding: EdgeInsets.only(right: i == keys.length - 1 ? 0 : gap),
+              child: _PaletteTile(
+                onTap: () => onAdd(keys[i]),
+                padding: const EdgeInsets.all(2),
+                child:
+                    _renderKey(previewMap['kbd_${keys[i].id}'] as VirtualKey?),
               ),
             ),
-          ]
-        ],
-      ),
+          ),
+        ]
+      ],
     );
   }
 
@@ -221,129 +242,61 @@ class _MouseJoystickPalette extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        const gap = 6.0;
+        const gap = 4.0;
         final rowHeight = ((constraints.maxHeight - gap) / 2).clamp(52.0, 96.0);
+        Widget squareTile({
+          required VoidCallback onTap,
+          required Widget child,
+        }) {
+          return SizedBox(
+            height: rowHeight,
+            width: rowHeight,
+            child: _ControlTile(
+              onTap: onTap,
+              padding: const EdgeInsets.all(4),
+              child: child,
+            ),
+          );
+        }
 
         return Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            Expanded(
-              child: Column(
-                children: [
-                  SizedBox(
-                    height: rowHeight,
-                    child: Row(
-                      children: [
-                        Expanded(
-                          flex: 2,
-                          child: _ControlTile(
-                            onTap: () =>
-                                onAdd(EditorControlFactory.splitMouse()),
-                            child: VirtualSplitMouseWidget(
-                              control: previewMap['mouse_split']
-                                  as VirtualSplitMouse,
-                              onInputEvent: (_) {},
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: gap),
-                        Expanded(
-                          child: _ControlTile(
-                            onTap: () => onAdd(
-                                EditorControlFactory.mouseButton('middle')),
-                            child: VirtualMouseButtonWidget(
-                              control: previewMap['mouse_middle']
-                                  as VirtualMouseButton,
-                              onInputEvent: (_) {},
-                              showLabel: true,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: gap),
-                        Expanded(
-                          child: _ControlTile(
-                            onTap: () async {
-                              final text =
-                                  await _showCustomSignalSheet(context);
-                              if (text == null) return;
-                              final created =
-                                  EditorControlFactory.customSignal(text);
-                              if (created == null ||
-                                  created is VirtualJoystick) {
-                                if (!context.mounted) return;
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('无效输入')),
-                                );
-                                return;
-                              }
-                              onAdd(created);
-                            },
-                            child: _customPreview(),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: gap),
-                  SizedBox(
-                    height: rowHeight,
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: _ControlTile(
-                            onTap: () =>
-                                onAdd(EditorControlFactory.joystickWASD()),
-                            child: VirtualJoystickWidget(
-                              control:
-                                  previewMap['joy_wasd'] as VirtualJoystick,
-                              onInputEvent: (_) {},
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: gap),
-                        Expanded(
-                          child: _ControlTile(
-                            onTap: () =>
-                                onAdd(EditorControlFactory.joystickArrows()),
-                            child: VirtualJoystickWidget(
-                              control:
-                                  previewMap['joy_arrows'] as VirtualJoystick,
-                              onInputEvent: (_) {},
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: gap),
-                        Expanded(
-                          child: _ControlTile(
-                            onTap: () =>
-                                onAdd(EditorControlFactory.gamepadLeftStick()),
-                            child: VirtualJoystickWidget(
-                              control: previewMap['joy_ls'] as VirtualJoystick,
-                              onInputEvent: (_) {},
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: gap),
-                        Expanded(
-                          child: _ControlTile(
-                            onTap: () =>
-                                onAdd(EditorControlFactory.gamepadRightStick()),
-                            child: VirtualJoystickWidget(
-                              control: previewMap['joy_rs'] as VirtualJoystick,
-                              onInputEvent: (_) {},
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+            squareTile(
+              onTap: () => onAdd(EditorControlFactory.joystickWASD()),
+              child: VirtualJoystickWidget(
+                control: previewMap['joy_wasd'] as VirtualJoystick,
+                onInputEvent: (_) {},
               ),
             ),
-            const SizedBox(width: gap),
+            squareTile(
+              onTap: () => onAdd(EditorControlFactory.joystickArrows()),
+              child: VirtualJoystickWidget(
+                control: previewMap['joy_arrows'] as VirtualJoystick,
+                onInputEvent: (_) {},
+              ),
+            ),
+            squareTile(
+              onTap: () => onAdd(EditorControlFactory.splitMouse()),
+              child: VirtualSplitMouseWidget(
+                control: previewMap['mouse_split'] as VirtualSplitMouse,
+                onInputEvent: (_) {},
+              ),
+            ),
+            squareTile(
+              onTap: () => onAdd(EditorControlFactory.mouseButton('middle')),
+              child: VirtualMouseButtonWidget(
+                control: previewMap['mouse_middle'] as VirtualMouseButton,
+                onInputEvent: (_) {},
+                showLabel: true,
+              ),
+            ),
             SizedBox(
-              width: 110,
+              width: 70,
+              // height: rowHeight,
               child: _ControlTile(
                 onTap: () => onAdd(EditorControlFactory.scrollStick()),
+                padding: const EdgeInsets.all(4),
                 child: VirtualScrollStickWidget(
                   control: previewMap['scroll_stick'] as VirtualScrollStick,
                   onInputEvent: (_) {},
@@ -354,99 +307,6 @@ class _MouseJoystickPalette extends StatelessWidget {
         );
       },
     );
-  }
-
-  Widget _customPreview() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white10,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      child: const Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.add, size: 16, color: Colors.white70),
-          SizedBox(width: 6),
-          Text('自定义', style: TextStyle(color: Colors.white, fontSize: 12)),
-        ],
-      ),
-    );
-  }
-
-  Future<String?> _showCustomSignalSheet(BuildContext context) async {
-    final controller = TextEditingController();
-    final focusNode = FocusNode();
-    final result = await showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return AnimatedPadding(
-          duration: const Duration(milliseconds: 160),
-          curve: Curves.easeOut,
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-          ),
-          child: SafeArea(
-            top: false,
-            child: Material(
-              color: const Color(0xFF1C1C1E),
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(16)),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: controller,
-                        focusNode: focusNode,
-                        autofocus: true,
-                        style: const TextStyle(color: Colors.white),
-                        decoration: InputDecoration(
-                          hintText:
-                              '例如：Space / key:Enter / mouse:middle / gamepad:A',
-                          hintStyle: const TextStyle(color: Colors.white38),
-                          filled: true,
-                          fillColor: Colors.white10,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 10,
-                          ),
-                        ),
-                        textInputAction: TextInputAction.done,
-                        onSubmitted: (v) => Navigator.of(context).pop(v),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: const Text('取消'),
-                    ),
-                    const SizedBox(width: 4),
-                    ElevatedButton(
-                      onPressed: () =>
-                          Navigator.of(context).pop(controller.text),
-                      child: const Text('添加'),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-    focusNode.dispose();
-    controller.dispose();
-    final v = result?.trim();
-    if (v == null || v.isEmpty) return null;
-    return v;
   }
 }
 
@@ -464,16 +324,16 @@ class _GamepadPalette extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final row1 = isPs
-        ? const ['Triangle', 'Circle', 'Square', 'Cross', 'L1']
-        : const ['Y', 'B', 'X', 'A', 'LB'];
-    final row2 = isPs
-        ? const ['R1', 'L2', 'R2', 'Share', 'Options']
-        : const ['RB', 'LT', 'RT', 'Back', 'Start'];
+        ? const ['L1', 'L2', 'Share', 'Options', 'R1', 'R2']
+        : const ['LB', 'LT', 'Back', 'Start', 'RB', 'RT'];
+
+    final row2 = isPs ? const ['Triangle', 'Circle'] : const ['Y', 'B'];
+    final row3 = isPs ? const ['Square', 'Cross'] : const ['X', 'A'];
 
     return LayoutBuilder(
       builder: (context, constraints) {
         const gap = 6.0;
-        final rowHeight = ((constraints.maxHeight - gap) / 2).clamp(52.0, 96.0);
+        final rowHeight = (constraints.maxHeight - gap).clamp(52.0, 156.0);
 
         Widget buildRow(List<String> labels) {
           return Row(
@@ -482,6 +342,7 @@ class _GamepadPalette extends StatelessWidget {
                 Expanded(
                   child: _ControlTile(
                     onTap: () => onAdd(labels[i]),
+                    padding: const EdgeInsets.all(4),
                     child: VirtualButtonWidget(
                       control: previewMap['pad_${labels[i].toLowerCase()}']
                           as VirtualButton,
@@ -496,28 +357,64 @@ class _GamepadPalette extends StatelessWidget {
           );
         }
 
-        return Row(
+//  SizedBox(height: rowHeight, child: buildRow(row1)),
+        return Column(
           children: [
-            Expanded(
-              child: Column(
-                children: [
-                  SizedBox(height: rowHeight, child: buildRow(row1)),
-                  const SizedBox(height: gap),
-                  SizedBox(height: rowHeight, child: buildRow(row2)),
-                ],
-              ),
-            ),
-            const SizedBox(width: gap),
-            SizedBox(
-              width: 110,
-              child: _ControlTile(
-                onTap: () => onAdd('Dpad'),
-                child: VirtualDpadWidget(
-                  control: previewMap['pad_dpad'] as VirtualDpad,
-                  onInputEvent: (_) {},
+            Expanded(child: SizedBox(height: rowHeight, child: buildRow(row1))),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                SizedBox(
+                  width: rowHeight,
+                  height: rowHeight,
+                  child: _ControlTile(
+                    onTap: () => onAdd('LS'),
+                    padding: const EdgeInsets.all(4),
+                    child: VirtualJoystickWidget(
+                      control: previewMap['pad_ls'] as VirtualJoystick,
+                      onInputEvent: (_) {},
+                    ),
+                  ),
                 ),
-              ),
-            ),
+                SizedBox(
+                  width: rowHeight,
+                  height: rowHeight,
+                  child: _ControlTile(
+                    onTap: () => onAdd('Dpad'),
+                    padding: const EdgeInsets.all(4),
+                    child: VirtualDpadWidget(
+                      control: previewMap['pad_dpad'] as VirtualDpad,
+                      onInputEvent: (_) {},
+                    ),
+                  ),
+                ),
+                SizedBox(
+                    width: rowHeight,
+                    height: rowHeight,
+                    child: Column(
+                      children: [
+                        Expanded(
+                            child: SizedBox(
+                                height: rowHeight, child: buildRow(row2))),
+                        Expanded(
+                            child: SizedBox(
+                                height: rowHeight, child: buildRow(row3))),
+                      ],
+                    )),
+                SizedBox(
+                  width: rowHeight,
+                  height: rowHeight,
+                  child: _ControlTile(
+                    onTap: () => onAdd('RS'),
+                    padding: const EdgeInsets.all(4),
+                    child: VirtualJoystickWidget(
+                      control: previewMap['pad_rs'] as VirtualJoystick,
+                      onInputEvent: (_) {},
+                    ),
+                  ),
+                ),
+              ],
+            )
           ],
         );
       },
@@ -526,20 +423,34 @@ class _GamepadPalette extends StatelessWidget {
 }
 
 class _ControlTile extends StatelessWidget {
-  const _ControlTile({required this.onTap, required this.child});
+  const _ControlTile({
+    required this.onTap,
+    required this.child,
+    this.padding = const EdgeInsets.all(6),
+  });
   final VoidCallback onTap;
   final Widget child;
+  final EdgeInsets padding;
 
   @override
   Widget build(BuildContext context) {
-    return _PaletteTile(onTap: onTap, child: IgnorePointer(child: child));
+    return _PaletteTile(
+      onTap: onTap,
+      padding: padding,
+      child: IgnorePointer(child: child),
+    );
   }
 }
 
 class _PaletteTile extends StatelessWidget {
-  const _PaletteTile({required this.onTap, required this.child});
+  const _PaletteTile({
+    required this.onTap,
+    required this.child,
+    this.padding = const EdgeInsets.all(6),
+  });
   final VoidCallback onTap;
   final Widget child;
+  final EdgeInsets padding;
 
   @override
   Widget build(BuildContext context) {
@@ -549,8 +460,8 @@ class _PaletteTile extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.all(6),
-          child: Center(child: child),
+          padding: padding,
+          child: SizedBox.expand(child: child),
         ),
       ),
     );
@@ -570,14 +481,15 @@ List<VirtualControl> _prototypesFor(VirtualControllerEditorPaletteTab tab) {
               layout: dummy,
               trigger: TriggerType.tap,
               config: const {},
-              key: _normalizeKeyValue(k.label),
+              key: k.key,
+              modifiers: k.modifiers,
             ),
       ];
     case VirtualControllerEditorPaletteTab.mouseAndJoystick:
       return [
         VirtualMouseButton(
           id: 'mouse_middle',
-          label: 'middle',
+          label: 'M',
           layout: dummy,
           trigger: TriggerType.tap,
           button: 'middle',
@@ -624,7 +536,7 @@ List<VirtualControl> _prototypesFor(VirtualControllerEditorPaletteTab tab) {
           label: '',
           layout: dummy,
           trigger: TriggerType.hold,
-          keys: const ['↑', '←', '↓', '→'],
+          keys: const ['ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight'],
           style: const ControlStyle(
             shape: BoxShape.circle,
             borderColor: Color(0xFF66D19E),
@@ -639,52 +551,6 @@ List<VirtualControl> _prototypesFor(VirtualControllerEditorPaletteTab tab) {
           config: const {
             'overlayLabels': ['↑', '←', '↓', '→'],
             'overlayStyle': 'quadrant',
-          },
-        ),
-        VirtualJoystick(
-          id: 'joy_ls',
-          label: 'LS',
-          layout: dummy,
-          trigger: TriggerType.hold,
-          mode: 'gamepad',
-          stickType: 'left',
-          style: const ControlStyle(
-            shape: BoxShape.circle,
-            borderColor: Color(0xFFFFCC00),
-            pressedBorderColor: Color(0xFFFFE27A),
-            borderWidth: 2.0,
-            color: Color(0x263A3A3C),
-            pressedColor: Color(0x334A4A4C),
-            pressedOpacity: 1.0,
-          ),
-          feedback:
-              const ControlFeedback(vibration: true, vibrationType: 'medium'),
-          config: const {
-            'centerLabel': 'L',
-            'overlayStyle': 'center',
-          },
-        ),
-        VirtualJoystick(
-          id: 'joy_rs',
-          label: 'RS',
-          layout: dummy,
-          trigger: TriggerType.hold,
-          mode: 'gamepad',
-          stickType: 'right',
-          style: const ControlStyle(
-            shape: BoxShape.circle,
-            borderColor: Color(0xFFFF7A45),
-            pressedBorderColor: Color(0xFFFFB394),
-            borderWidth: 2.0,
-            color: Color(0x263A3A3C),
-            pressedColor: Color(0x334A4A4C),
-            pressedOpacity: 1.0,
-          ),
-          feedback:
-              const ControlFeedback(vibration: true, vibrationType: 'medium'),
-          config: const {
-            'centerLabel': 'R',
-            'overlayStyle': 'center',
           },
         ),
         VirtualDpad(
@@ -737,32 +603,90 @@ List<VirtualControl> _prototypesFor(VirtualControllerEditorPaletteTab tab) {
           },
           config: const {},
         ),
+        VirtualJoystick(
+          id: 'pad_ls',
+          label: 'LS',
+          layout: dummy,
+          trigger: TriggerType.hold,
+          mode: 'gamepad',
+          stickType: 'left',
+          style: const ControlStyle(
+            shape: BoxShape.circle,
+            borderColor: Color(0xFFFFCC00),
+            pressedBorderColor: Color(0xFFFFE27A),
+            borderWidth: 2.0,
+            color: Color(0x263A3A3C),
+            pressedColor: Color(0x334A4A4C),
+            pressedOpacity: 1.0,
+          ),
+          feedback:
+              const ControlFeedback(vibration: true, vibrationType: 'medium'),
+          config: const {
+            'centerLabel': 'L',
+            'overlayStyle': 'center',
+          },
+        ),
+        VirtualJoystick(
+          id: 'pad_rs',
+          label: 'RS',
+          layout: dummy,
+          trigger: TriggerType.hold,
+          mode: 'gamepad',
+          stickType: 'right',
+          style: const ControlStyle(
+            shape: BoxShape.circle,
+            borderColor: Color(0xFFFF7A45),
+            pressedBorderColor: Color(0xFFFFB394),
+            borderWidth: 2.0,
+            color: Color(0x263A3A3C),
+            pressedColor: Color(0x334A4A4C),
+            pressedOpacity: 1.0,
+          ),
+          feedback:
+              const ControlFeedback(vibration: true, vibrationType: 'medium'),
+          config: const {
+            'centerLabel': 'R',
+            'overlayStyle': 'center',
+          },
+        ),
       ];
   }
 }
 
-String _normalizeKeyValue(String label) {
-  return switch (label) {
-    '↑' => 'ArrowUp',
-    '↓' => 'ArrowDown',
-    '←' => 'ArrowLeft',
-    '→' => 'ArrowRight',
-    'Win' => 'Meta',
-    _ => label,
-  };
-}
-
 class _KeySpec {
-  const _KeySpec(this.id, this.label, this.flex);
+  const _KeySpec(
+    this.id,
+    this.label,
+    this.flex, {
+    String? key,
+    this.modifiers = const [],
+  }) : key = key ?? label;
   final String id;
   final String label;
   final int flex;
+  final String key;
+  final List<String> modifiers;
 }
 
 List<List<_KeySpec>> _keyboardRows() {
   return const [
     [
+      _KeySpec('f1', 'F1', 1),
+      _KeySpec('f2', 'F2', 1),
+      _KeySpec('f3', 'F3', 1),
+      _KeySpec('f4', 'F4', 1),
+      _KeySpec('f5', 'F5', 1),
+      _KeySpec('f6', 'F6', 1),
+      _KeySpec('f7', 'F7', 1),
+      _KeySpec('f8', 'F8', 1),
+      _KeySpec('f9', 'F9', 1),
+      _KeySpec('f10', 'F10', 1),
+      _KeySpec('f11', 'F11', 1),
+      _KeySpec('f12', 'F12', 1),
+    ],
+    [
       _KeySpec('esc', 'Esc', 1),
+      _KeySpec('tilde', '~', 1, key: '`', modifiers: ['Shift']),
       _KeySpec('1', '1', 1),
       _KeySpec('2', '2', 1),
       _KeySpec('3', '3', 1),
@@ -825,12 +749,28 @@ List<List<_KeySpec>> _keyboardRows() {
     [
       _KeySpec('ctrl', 'Ctrl', 2),
       _KeySpec('alt', 'Alt', 2),
-      _KeySpec('win', 'Win', 2),
+      _KeySpec('win', 'Win', 2, key: 'Meta'),
       _KeySpec('space', 'Space', 8),
-      _KeySpec('left', '←', 1),
-      _KeySpec('down', '↓', 1),
-      _KeySpec('up', '↑', 1),
-      _KeySpec('right', '→', 1),
+      _KeySpec('left', '←', 1, key: 'ArrowLeft'),
+      _KeySpec('down', '↓', 1, key: 'ArrowDown'),
+      _KeySpec('up', '↑', 1, key: 'ArrowUp'),
+      _KeySpec('right', '→', 1, key: 'ArrowRight'),
+    ],
+    [
+      _KeySpec('insert', 'Insert', 2),
+      _KeySpec('delete', 'Delete', 2),
+      _KeySpec('home', 'Home', 2),
+      _KeySpec('end', 'End', 2),
+      _KeySpec('pageup', 'PageUp', 2),
+      _KeySpec('pagedown', 'PageDown', 2),
+    ],
+    [
+      _KeySpec('vol_down', 'Vol-', 2, key: 'VolumeDown'),
+      _KeySpec('vol_up', 'Vol+', 2, key: 'VolumeUp'),
+      _KeySpec('mute', 'Mute', 2, key: 'AudioMute'),
+      _KeySpec('prev', 'Prev', 2, key: 'AudioPrev'),
+      _KeySpec('play', 'Play', 2, key: 'AudioPlay'),
+      _KeySpec('next', 'Next', 2, key: 'AudioNext'),
     ],
   ];
 }

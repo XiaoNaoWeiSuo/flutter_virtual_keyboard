@@ -85,10 +85,15 @@ class GamepadSymbol extends StatelessWidget {
     // System Buttons
     if (normLabel == 'menu' ||
         normId.endsWith('_menu') ||
+        normLabel == 'start' ||
+        normId.endsWith('_start') ||
         normLabel == 'options') {
       return _buildIcon(Icons.menu, Colors.white);
     }
-    if (normLabel == 'view' || normId.endsWith('_view')) {
+    if (normLabel == 'view' ||
+        normId.endsWith('_view') ||
+        normLabel == 'back' ||
+        normId.endsWith('_back')) {
       return _buildIcon(Icons.filter_none, Colors.white,
           sizeScale: 0.5); // 2 overlapping squares
     }

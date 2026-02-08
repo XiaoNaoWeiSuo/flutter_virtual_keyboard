@@ -42,14 +42,29 @@ class EditorControlFactory {
     pressedOpacity: 1.0,
   );
   static VirtualKey key(String label, {ControlLayout? layout}) {
-    final (key, normalizedLabel) = _normalizeKey(label);
+    final (key, normalizedLabel, modifiers) = _normalizeKey(label);
+    return keyWith(
+      key: key,
+      label: normalizedLabel,
+      modifiers: modifiers,
+      layout: layout,
+    );
+  }
+
+  static VirtualKey keyWith({
+    required String key,
+    required String label,
+    List<String> modifiers = const [],
+    ControlLayout? layout,
+  }) {
     return VirtualKey(
       id: 'key_${DateTime.now().microsecondsSinceEpoch}',
-      label: normalizedLabel,
-      layout: layout ?? _keyboardInitialLayoutFor(normalizedLabel),
+      label: label,
+      layout: layout ?? _keyboardInitialLayoutFor(label),
       trigger: TriggerType.tap,
-      config: {},
+      config: const {},
       key: key,
+      modifiers: modifiers,
     );
   }
 
@@ -114,7 +129,7 @@ class EditorControlFactory {
       layout: layout ??
           const ControlLayout(x: 0.1, y: 0.6, width: 0.18, height: 0.28),
       trigger: TriggerType.hold,
-      keys: const ['↑', '←', '↓', '→'],
+      keys: const ['ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight'],
       style: _arrowsStickStyle,
       feedback: const ControlFeedback(vibration: true, vibrationType: 'medium'),
       config: const {
@@ -173,41 +188,6 @@ class EditorControlFactory {
     );
   }
 
-  static VirtualControl? customSignal(String raw, {ControlLayout? layout}) {
-    final trimmed = raw.trim();
-    if (trimmed.isEmpty) return null;
-
-    final lower = trimmed.toLowerCase();
-
-    if (lower.startsWith('key:')) {
-      final v = trimmed.substring(4).trim();
-      if (v.isEmpty) return null;
-      return key(v, layout: layout);
-    }
-
-    if (lower.startsWith('mouse:')) {
-      final v = trimmed.substring(6).trim().toLowerCase();
-      if (v != 'left' && v != 'right' && v != 'middle') return null;
-      return mouseButton(v, layout: layout);
-    }
-
-    if (lower.startsWith('wheel:')) {
-      final v = trimmed.substring(6).trim().toLowerCase();
-      if (v != 'up' && v != 'down') return null;
-      return mouseWheel(v, layout: layout);
-    }
-
-    if (lower.startsWith('gamepad:') || lower.startsWith('pad:')) {
-      final v = trimmed.contains(':')
-          ? trimmed.substring(trimmed.indexOf(':') + 1).trim()
-          : '';
-      if (v.isEmpty) return null;
-      return gamepadButton(v, layout: layout);
-    }
-
-    return key(trimmed, layout: layout);
-  }
-
   static VirtualDpad dpad({ControlLayout? layout}) {
     return VirtualDpad(
       id: 'dpad_${DateTime.now().microsecondsSinceEpoch}',
@@ -241,7 +221,7 @@ class EditorControlFactory {
   }
 
   static ControlLayout _keyboardInitialLayoutFor(String label) {
-    const base = Size(0.05, 0.08);
+    const base = Size(0.06, 0.09);
     final flex = switch (label) {
       'Backspace' => 2,
       'Tab' => 2,
@@ -259,17 +239,52 @@ class EditorControlFactory {
     );
   }
 
-  static (String key, String label) _normalizeKey(String raw) {
+  static (String key, String label, List<String> modifiers) _normalizeKey(
+      String raw) {
     final trimmed = raw.trim();
-    if (trimmed.isEmpty) return ('', '');
+    if (trimmed.isEmpty) return ('', '', const []);
+
+    String normalizeMod(String s) {
+      final lower = s.toLowerCase();
+      return switch (lower) {
+        'shift' => 'Shift',
+        'ctrl' || 'control' => 'Ctrl',
+        'alt' => 'Alt',
+        'meta' || 'cmd' || 'win' => 'Meta',
+        _ => '',
+      };
+    }
+
+    if (trimmed.contains('+')) {
+      final parts = trimmed
+          .split('+')
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
+          .toList();
+      if (parts.length >= 2) {
+        final mods = <String>[];
+        for (final m in parts.take(parts.length - 1)) {
+          final normalized = normalizeMod(m);
+          if (normalized.isNotEmpty) mods.add(normalized);
+        }
+        final last = parts.last;
+        final (key, label, _) = _normalizeKey(last);
+        return (key, trimmed, mods);
+      }
+    }
+
+    if (trimmed == '~') {
+      return ('`', '~', const ['Shift']);
+    }
+
     return switch (trimmed) {
-      'Caps' => ('CapsLock', 'CapsLock'),
-      'Win' => ('Meta', 'Win'),
-      '↑' => ('ArrowUp', '↑'),
-      '↓' => ('ArrowDown', '↓'),
-      '←' => ('ArrowLeft', '←'),
-      '→' => ('ArrowRight', '→'),
-      _ => (trimmed, trimmed),
+      'Caps' => ('CapsLock', 'CapsLock', const []),
+      'Win' => ('Meta', 'Win', const []),
+      '↑' => ('ArrowUp', '↑', const []),
+      '↓' => ('ArrowDown', '↓', const []),
+      '←' => ('ArrowLeft', '←', const []),
+      '→' => ('ArrowRight', '→', const []),
+      _ => (trimmed, trimmed, const []),
     };
   }
 }

@@ -13,16 +13,27 @@ class ControlLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: style ??
-          const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 14,
-            shadows: [Shadow(color: Colors.black, blurRadius: 2)],
-          ),
-      textAlign: TextAlign.center,
+    final effectiveStyle = style ??
+        const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+          fontSize: 14,
+          shadows: [Shadow(color: Colors.black, blurRadius: 2)],
+        );
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text(
+          text,
+          style: effectiveStyle,
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.visible,
+          softWrap: false,
+        ),
+      ),
     );
   }
 }

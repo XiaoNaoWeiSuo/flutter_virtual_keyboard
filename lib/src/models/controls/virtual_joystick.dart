@@ -42,6 +42,26 @@ class VirtualJoystick extends VirtualControl {
       keys = List<String>.from(actions.first.config['keys'] as List);
     }
 
+    String normalizeDirectionKey(String raw) {
+      final t = raw.trim();
+      if (t.isEmpty) return raw;
+      return switch (t) {
+        '↑' => 'ArrowUp',
+        '↓' => 'ArrowDown',
+        '←' => 'ArrowLeft',
+        '→' => 'ArrowRight',
+        _ => switch (t.toLowerCase()) {
+            'up' => 'ArrowUp',
+            'down' => 'ArrowDown',
+            'left' => 'ArrowLeft',
+            'right' => 'ArrowRight',
+            _ => raw,
+          },
+      };
+    }
+
+    keys = keys.map(normalizeDirectionKey).toList();
+
     return VirtualJoystick(
       id: json['id'] as String,
       label: json['label'] as String? ?? '',

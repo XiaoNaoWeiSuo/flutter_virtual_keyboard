@@ -92,9 +92,11 @@ class _VirtualJoystickWidgetState extends State<VirtualJoystickWidget> {
           child: Stack(
             alignment: Alignment.center,
             children: [
-              _JoystickOverlay(
-                control: widget.control,
-                color: style?.labelStyle?.color ?? Colors.white70,
+              ClipOval(
+                child: _JoystickOverlay(
+                  control: widget.control,
+                  color: style?.labelStyle?.color ?? Colors.white70,
+                ),
               ),
               // Stick
               Transform.translate(
@@ -333,43 +335,61 @@ class _JoystickOverlay extends StatelessWidget {
         ? labels.map((e) => e?.toString() ?? '').toList()
         : const <String>[];
 
-    final textStyle = TextStyle(
-      color: color,
-      fontSize: 12,
-      fontWeight: FontWeight.w700,
-      height: 1.0,
-    );
-
     if (overlayStyle == 'center' && centerLabel.trim().isNotEmpty) {
       return IgnorePointer(
-        child: Center(child: Text(centerLabel, style: textStyle)),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final fontSize =
+                (constraints.biggest.shortestSide * 0.18).clamp(10.0, 14.0);
+            final textStyle = TextStyle(
+              color: color,
+              fontSize: fontSize,
+              fontWeight: FontWeight.w700,
+              height: 1.0,
+            );
+            return Center(child: Text(centerLabel, style: textStyle));
+          },
+        ),
       );
     }
 
     if (overlayStyle == 'quadrant' && list.length >= 4) {
       return IgnorePointer(
-        child: Padding(
-          padding: const EdgeInsets.all(10),
-          child: Stack(
-            children: [
-              Align(
-                alignment: Alignment.topCenter,
-                child: Text(list[0], style: textStyle),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final shortest = constraints.biggest.shortestSide;
+            final pad = (shortest * 0.10).clamp(6.0, 10.0);
+            final fontSize = (shortest * 0.16).clamp(10.0, 13.0);
+            final textStyle = TextStyle(
+              color: color,
+              fontSize: fontSize,
+              fontWeight: FontWeight.w700,
+              height: 1.0,
+            );
+            return Padding(
+              padding: EdgeInsets.all(pad),
+              child: Stack(
+                children: [
+                  Align(
+                    alignment: Alignment.topCenter,
+                    child: Text(list[0], style: textStyle),
+                  ),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(list[1], style: textStyle),
+                  ),
+                  Align(
+                    alignment: Alignment.bottomCenter,
+                    child: Text(list[2], style: textStyle),
+                  ),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Text(list[3], style: textStyle),
+                  ),
+                ],
               ),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(list[1], style: textStyle),
-              ),
-              Align(
-                alignment: Alignment.bottomCenter,
-                child: Text(list[2], style: textStyle),
-              ),
-              Align(
-                alignment: Alignment.centerRight,
-                child: Text(list[3], style: textStyle),
-              ),
-            ],
-          ),
+            );
+          },
         ),
       );
     }

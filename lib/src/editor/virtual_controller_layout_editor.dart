@@ -196,7 +196,7 @@ class _VirtualControllerLayoutEditorState
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.55,
+        maxHeight: MediaQuery.of(context).size.height * 0.65,
       ),
       builder: (context) {
         return VirtualControllerLayoutEditorPalette(
@@ -453,7 +453,7 @@ class _DockPanel extends StatelessWidget {
       );
     }
     return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 340),
+      constraints: BoxConstraints(maxWidth: hasSelection ? 380 : 280),
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: const Color(0xFF1C1C1E).withValues(alpha: 0.88),
@@ -461,7 +461,7 @@ class _DockPanel extends StatelessWidget {
           border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
         ),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
+          padding: const EdgeInsets.fromLTRB(4, 4, 5, 5),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -500,18 +500,6 @@ class _DockPanel extends StatelessWidget {
                       ),
                     ),
                   ),
-                  if (hasSelection)
-                    Padding(
-                      padding: const EdgeInsets.only(right: 4),
-                      child: Text(
-                        '大${sizeValue.toStringAsFixed(1)}  透${opacityValue.toStringAsFixed(1)}',
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
                   IconButton(
                     onPressed: canSave ? onSave : null,
                     icon: Icon(Icons.save,
@@ -519,36 +507,13 @@ class _DockPanel extends StatelessWidget {
                         size: 18),
                     tooltip: '保存',
                   ),
-                ],
-              ),
-              if (hasSelection) ...[
-                if (!readOnly && allowResize) ...[
-                  const SizedBox(height: 4),
-                  _SmallSlider(
-                    label: '大小',
-                    value: sizeValue.clamp(0.5, 3.0),
-                    min: 0.5,
-                    max: 3.0,
-                    onChanged: onSizeChanged,
-                  ),
-                  _SmallSlider(
-                    label: '透明',
-                    value: opacityValue.clamp(0.05, 1.0),
-                    min: 0.05,
-                    max: 1.0,
-                    onChanged: onOpacityChanged,
-                  ),
-                ],
-                const SizedBox(height: 2),
-                Row(
-                  children: [
+                  if (hasSelection) ...[
                     IconButton(
                       onPressed: onDeselect,
-                      icon: const Icon(Icons.check_circle_outline,
-                          color: Colors.white70, size: 18),
+                      icon: const Icon(Icons.done_outline,
+                          color: Colors.lightBlueAccent, size: 18),
                       tooltip: '完成',
                     ),
-                    const Spacer(),
                     IconButton(
                       onPressed: !readOnly ? onDelete : null,
                       icon: Icon(Icons.delete,
@@ -559,13 +524,28 @@ class _DockPanel extends StatelessWidget {
                     IconButton(
                       onPressed: onReset,
                       icon: const Icon(Icons.restore,
-                          color: Colors.white70, size: 18),
+                          color: Colors.amberAccent, size: 18),
                       tooltip: '重置',
                     ),
                   ],
+                ],
+              ),
+              if (hasSelection && !readOnly && allowResize) ...[
+                _SmallSlider(
+                  label: '大小',
+                  value: sizeValue.clamp(0.5, 3.0),
+                  min: 0.5,
+                  max: 3.0,
+                  onChanged: onSizeChanged,
+                ),
+                _SmallSlider(
+                  label: '透明',
+                  value: opacityValue.clamp(0.05, 1.0),
+                  min: 0.05,
+                  max: 1.0,
+                  onChanged: onOpacityChanged,
                 ),
               ] else if (!readOnly && allowAddRemove) ...[
-                const SizedBox(height: 4),
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -642,8 +622,8 @@ class _DockPill extends StatelessWidget {
                 ),
                 if (dirty)
                   Positioned(
-                    right: 2,
-                    top: 2,
+                    right: 5,
+                    top: 10,
                     child: Container(
                       width: 7,
                       height: 7,
@@ -720,9 +700,9 @@ class _SmallSlider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
+    return Container(
       height: 30,
-      width: 240,
+      padding: const EdgeInsets.only(bottom: 0, left: 18, right: 18),
       child: Row(
         children: [
           SizedBox(
@@ -737,6 +717,7 @@ class _SmallSlider extends StatelessWidget {
               value: value,
               min: min,
               max: max,
+              activeColor: Colors.white70,
               onChanged: onChanged,
             ),
           ),
