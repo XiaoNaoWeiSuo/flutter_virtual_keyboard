@@ -82,6 +82,13 @@ class VirtualControllerState {
     return VirtualControllerState(schemaVersion: schemaVersion, controls: next);
   }
 
+  VirtualControllerState remove(String id) {
+    return VirtualControllerState(
+      schemaVersion: schemaVersion,
+      controls: controls.where((c) => c.id != id).toList(),
+    );
+  }
+
   VirtualControlState? stateFor(String id) {
     for (final c in controls) {
       if (c.id == id) return c;

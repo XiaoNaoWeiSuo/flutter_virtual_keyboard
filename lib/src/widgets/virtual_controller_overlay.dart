@@ -101,6 +101,7 @@ class _VirtualControllerOverlayState extends State<VirtualControllerOverlay> {
     VirtualControllerState state,
   ) {
     final stateById = state.byId;
+    final definitionIds = controls.map((c) => c.id).toSet();
     final resolved = <_ResolvedControl>[];
     for (final control in controls) {
       final s = stateById[control.id];
@@ -122,6 +123,17 @@ class _VirtualControllerOverlayState extends State<VirtualControllerOverlay> {
           opacity: opacity,
         ));
       }
+    }
+
+    for (final s in state.controls) {
+      if (definitionIds.contains(s.id)) continue;
+      final dynamic = _dynamicControlFromId(s.id, s.layout);
+      if (dynamic == null) continue;
+      resolved.add(_ResolvedControl(
+        control: dynamic,
+        layout: s.layout,
+        opacity: (s.opacity).clamp(0.0, 1.0),
+      ));
     }
     return resolved;
   }
@@ -199,4 +211,172 @@ class _ResolvedControl {
     required this.layout,
     required this.opacity,
   });
+}
+
+VirtualControl? _dynamicControlFromId(String id, ControlLayout layout) {
+  if (id.startsWith('btn_')) {
+    final parts = id.split('_');
+    if (parts.length >= 2) {
+      final code = parts[1];
+      final btn = InputBindingRegistry.tryGetGamepadButton(code) ??
+          InputBindingRegistry.registerGamepadButton(code: code);
+      return VirtualButton(
+        id: id,
+        label: btn.label ?? btn.code,
+        layout: layout,
+        trigger: TriggerType.hold,
+        binding: GamepadButtonBinding(btn),
+      );
+    }
+  }
+  if (id.startsWith('mouse_')) {
+    final parts = id.split('_');
+    if (parts.length >= 2) {
+      final button = parts[1];
+      return VirtualMouseButton(
+        id: id,
+        label: button == 'middle' ? 'M' : button,
+        layout: layout,
+        trigger: button == 'right' ? TriggerType.hold : TriggerType.tap,
+        button: button,
+        config: const {},
+      );
+    }
+  }
+  if (id.startsWith('wheel_')) {
+    final parts = id.split('_');
+    if (parts.length >= 2) {
+      final direction = parts[1];
+      return VirtualMouseWheel(
+        id: id,
+        label: direction == 'up' ? '滑轮上' : '滑轮下',
+        layout: layout,
+        trigger: TriggerType.tap,
+        direction: direction,
+        config: const {'inputType': 'mouse_wheel'},
+      );
+    }
+  }
+  if (id.startsWith('split_mouse_')) {
+    return VirtualSplitMouse(
+      id: id,
+      label: '',
+      layout: layout,
+      trigger: TriggerType.hold,
+      config: const {},
+    );
+  }
+  if (id.startsWith('scroll_stick_')) {
+    return VirtualScrollStick(
+      id: id,
+      label: '',
+      layout: layout,
+      trigger: TriggerType.hold,
+      config: const {},
+    );
+  }
+  if (id.startsWith('dpad_')) {
+    return VirtualDpad(
+      id: id,
+      label: '',
+      layout: layout,
+      trigger: TriggerType.hold,
+      enable3D: true,
+      directions: const {
+        DpadDirection.up: GamepadButtonBinding(GamepadButtonId.dpadUp),
+        DpadDirection.down: GamepadButtonBinding(GamepadButtonId.dpadDown),
+        DpadDirection.left: GamepadButtonBinding(GamepadButtonId.dpadLeft),
+        DpadDirection.right: GamepadButtonBinding(GamepadButtonId.dpadRight),
+      },
+      config: const {},
+    );
+  }
+  if (id.startsWith('joystick_wasd_')) {
+    return VirtualJoystick(
+      id: id,
+      label: '',
+      layout: layout,
+      trigger: TriggerType.hold,
+      keys: const [
+        KeyboardKey('W'),
+        KeyboardKey('A'),
+        KeyboardKey('S'),
+        KeyboardKey('D'),
+      ],
+      config: const {
+        'overlayLabels': ['W', 'A', 'S', 'D'],
+        'overlayStyle': 'quadrant',
+      },
+    );
+  }
+  if (id.startsWith('joystick_arrows_')) {
+    return VirtualJoystick(
+      id: id,
+      label: '',
+      layout: layout,
+      trigger: TriggerType.hold,
+      keys: const [
+        KeyboardKey('ArrowUp'),
+        KeyboardKey('ArrowLeft'),
+        KeyboardKey('ArrowDown'),
+        KeyboardKey('ArrowRight'),
+      ],
+      config: const {
+        'overlayLabels': ['↑', '←', '↓', '→'],
+        'overlayStyle': 'quadrant',
+      },
+    );
+  }
+  if (id.startsWith('joystick_gamepad_left_')) {
+    return VirtualJoystick(
+      id: id,
+      label: 'LS',
+      layout: layout,
+      trigger: TriggerType.hold,
+      mode: 'gamepad',
+      stickType: 'left',
+      config: const {
+        'centerLabel': 'L',
+        'overlayStyle': 'center',
+      },
+    );
+  }
+  if (id.startsWith('joystick_gamepad_right_')) {
+    return VirtualJoystick(
+      id: id,
+      label: 'RS',
+      layout: layout,
+      trigger: TriggerType.hold,
+      mode: 'gamepad',
+      stickType: 'right',
+      config: const {
+        'centerLabel': 'R',
+        'overlayStyle': 'center',
+      },
+    );
+  }
+  if (id.startsWith('key_')) {
+    final parts = id.split('_');
+    if (parts.length >= 4) {
+      final keyCode = Uri.decodeComponent(parts[1]);
+      final modsRaw = parts[2];
+      final modifiers = modsRaw == 'none'
+          ? const <KeyboardKey>[]
+          : Uri.decodeComponent(modsRaw)
+              .split('+')
+              .where((e) => e.trim().isNotEmpty)
+              .map((e) => KeyboardKey(e).normalized())
+              .toList(growable: false);
+      final key = KeyboardKey(keyCode).normalized();
+      return VirtualKey(
+        id: id,
+        label: key.code,
+        layout: layout,
+        trigger: TriggerType.tap,
+        binding: KeyboardBinding(key: key, modifiers: modifiers),
+        config: const {},
+      );
+    }
+  }
+  return null;
 }

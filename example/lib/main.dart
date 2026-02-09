@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:virtual_gamepad_pro/virtual_gamepad_pro.dart';
 
 import 'platform/file_io.dart';
@@ -177,7 +178,7 @@ class _LayoutManagerPageState extends State<LayoutManagerPage> {
           onClose: () => Navigator.of(context).maybePop(),
           allowMove: true,
           allowResize: true,
-          allowAddRemove: false,
+          allowAddRemove: true,
           readOnly: false,
         ),
       ),
@@ -192,23 +193,101 @@ class _LayoutManagerPageState extends State<LayoutManagerPage> {
     if (id == null) return;
     final state = await _repo.loadState(id);
     final jsonStr = const JsonEncoder.withIndent('  ').convert(state.toJson());
-    await downloadTextFile('$id.state.json', jsonStr);
+    try {
+      await downloadTextFile('$id.state.json', jsonStr);
+    } catch (_) {
+      await _showExportDialog(filename: '$id.state.json', content: jsonStr);
+    }
   }
 
   Future<void> _importNew() async {
-    final picked = await pickTextFile();
-    if (picked == null) return;
-    final dynamic decoded = jsonDecode(picked.content);
+    String? filename;
+    String? content;
+    try {
+      final picked = await pickTextFile();
+      if (picked == null) return;
+      filename = picked.name;
+      content = picked.content;
+    } catch (_) {
+      final pasted = await _showImportDialog();
+      if (pasted == null) return;
+      filename = 'imported.state.json';
+      content = pasted;
+    }
+
+    final dynamic decoded = jsonDecode(content);
     if (decoded is! Map) return;
     final state = VirtualControllerState.fromJson(
       Map<String, dynamic>.from(decoded),
     );
-    final name = picked.name.replaceAll(RegExp(r'\.state\.json$'), '');
+    final name = filename.replaceAll(RegExp(r'\.state\.json$'), '');
     final id = await _repo.importAs(name, state);
     final ids = await _repo.listIds();
     await _select(id);
     if (!mounted) return;
     setState(() => _ids = ids);
+  }
+
+  Future<void> _showExportDialog({
+    required String filename,
+    required String content,
+  }) async {
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('导出：$filename'),
+        content: SizedBox(
+          width: 520,
+          child: SingleChildScrollView(child: SelectableText(content)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: content));
+              if (context.mounted) Navigator.of(context).pop();
+            },
+            child: const Text('复制并关闭'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('关闭'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<String?> _showImportDialog() async {
+    final controller = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('导入布局 State JSON'),
+        content: SizedBox(
+          width: 520,
+          child: TextField(
+            controller: controller,
+            autofocus: true,
+            minLines: 8,
+            maxLines: 16,
+            decoration: const InputDecoration(
+              hintText: '粘贴 VirtualControllerState 的 JSON',
+              border: OutlineInputBorder(),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(controller.text.trim()),
+            child: const Text('导入'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -217,6 +296,7 @@ class _LayoutManagerPageState extends State<LayoutManagerPage> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     final selected = _selectedId ?? _ids.first;
+    final definition = _definition;
 
     return Scaffold(
       appBar: AppBar(
@@ -282,7 +362,7 @@ class _LayoutManagerPageState extends State<LayoutManagerPage> {
                   ),
                 ),
                 VirtualControllerOverlay(
-                  definition: _definition,
+                  definition: definition,
                   state: _state,
                   onInputEvent: (e) {},
                   opacity: 1.0,

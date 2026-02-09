@@ -57,8 +57,12 @@ class EditorControlFactory {
     List<KeyboardKey> modifiers = const [],
     ControlLayout? layout,
   }) {
+    final encodedKey = Uri.encodeComponent(key.code);
+    final encodedMods = modifiers.isEmpty
+        ? 'none'
+        : Uri.encodeComponent(modifiers.map((m) => m.code).join('+'));
     return VirtualKey(
-      id: 'key_${DateTime.now().microsecondsSinceEpoch}',
+      id: 'key_${encodedKey}_${encodedMods}_${DateTime.now().microsecondsSinceEpoch}',
       label: label,
       layout: layout ?? _keyboardInitialLayoutFor(label),
       trigger: TriggerType.tap,
