@@ -1,6 +1,7 @@
 import '../style/control_layout.dart';
 import '../style/control_style.dart';
 import '../style/control_feedback.dart';
+import '../binding/binding.dart';
 import 'virtual_control.dart';
 
 /// Virtual Key Control.
@@ -16,23 +17,34 @@ class VirtualKey extends VirtualControl {
     super.config,
     super.style,
     super.feedback,
-    required this.key,
-    this.modifiers = const [],
-    this.repeat = false,
+    required this.binding,
   }) : super(type: 'key');
 
   /// Creates a [VirtualKey] from a JSON map.
   factory VirtualKey.fromJson(Map<String, dynamic> json) {
     final config = Map<String, dynamic>.from(json['config'] as Map? ?? {});
+    final bindingJson = json['binding'] ?? config['binding'];
+    final fromNew =
+        bindingJson != null ? InputBinding.fromJson(bindingJson) : null;
+    final binding = fromNew is KeyboardBinding ? fromNew : null;
+    if (fromNew != null && binding == null) {
+      throw const FormatException('VirtualKey binding must be keyboard');
+    }
     return VirtualKey(
       id: json['id'] as String,
       label: json['label'] as String? ?? '',
       layout: ControlLayout.fromJson(json['layout'] as Map<String, dynamic>),
       trigger: parseTriggerType(json['trigger'] as String?),
       config: config,
-      key: config['key'] as String? ?? '',
-      modifiers: List<String>.from(config['modifiers'] as List? ?? []),
-      repeat: config['repeat'] as bool? ?? false,
+      binding: binding ??
+          KeyboardBinding(
+            key: KeyboardKey(config['key'] as String? ?? '').normalized(),
+            modifiers: (config['modifiers'] as List? ?? const [])
+                .map((e) => KeyboardKey(e?.toString() ?? '').normalized())
+                .where((k) => k.code.trim().isNotEmpty && k.code != 'null')
+                .toList(),
+            repeat: config['repeat'] as bool? ?? false,
+          ),
       style: json['style'] != null
           ? ControlStyle.fromJson(json['style'] as Map<String, dynamic>)
           : null,
@@ -42,14 +54,7 @@ class VirtualKey extends VirtualControl {
     );
   }
 
-  /// The key code.
-  final String key;
-
-  /// List of modifier keys (e.g., Shift, Ctrl).
-  final List<String> modifiers;
-
-  /// Whether the key should repeat when held down.
-  final bool repeat;
+  final KeyboardBinding binding;
 
   @override
   Map<String, dynamic> toJson() => {
@@ -60,10 +65,9 @@ class VirtualKey extends VirtualControl {
         'trigger': triggerTypeToString(trigger),
         'config': {
           ...config,
-          'key': key,
-          'modifiers': modifiers,
-          'repeat': repeat,
+          'binding': binding.toJson(),
         },
+        'binding': binding.toJson(),
         if (style != null) 'style': style!.toJson(),
         if (feedback != null) 'feedback': feedback!.toJson(),
       };

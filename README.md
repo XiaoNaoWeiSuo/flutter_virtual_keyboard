@@ -3,36 +3,22 @@
 [![pub package](https://img.shields.io/pub/v/virtual_gamepad_pro.svg)](https://pub.dev/packages/virtual_gamepad_pro)
 [![license](https://img.shields.io/github/license/XiaoNaoWeiSuo/flutter_virtual_keyboard)](https://github.com/XiaoNaoWeiSuo/flutter_virtual_keyboard/blob/main/LICENSE)
 
-**The most advanced virtual controller suite for Flutter.**
-Designed for cloud gaming, remote desktop, and emulators. It features a rich set of controls (Joystick, D-Pad, Buttons) and a powerful **Runtime Layout Editor** with JSON serialization support.
+一个纯 Flutter 的虚拟控制器组件库（Joystick / D-Pad / Buttons / Mouse 等），附带运行时布局编辑器。
 
-**Flutter 平台最先进的虚拟控制器套件。**
-专为云游戏、远程桌面及模拟器应用打造。不仅包含摇杆、按键、D-Pad 等基础组件，更内置了强大的**运行时布局编辑器**，支持从 JSON 加载/保存布局。
+这个插件把“**控件定义**”（按键绑定、样式、业务语义）与“**可编辑状态**”（位置/大小/透明度）分离，便于：
+- 只把可分享的数据存成 JSON（不会携带绑定/回调/业务语义）
+- 业务侧用代码统一控制样式与输入绑定
+- 运行时渲染只做必要计算（少字符串推断/少动态 Map）
 
-> **Design Philosophy**: All controls use **normalized coordinates** (0.0 - 1.0) for position and size, ensuring consistent gameplay experience across different screen resolutions and aspect ratios (phones, tablets, foldables).
->
-> **设计理念**: 所有控件的位置与大小均采用**百分比坐标** (0.0 - 1.0)，确保在不同分辨率和屏幕比例的设备上（手机、平板、折叠屏）都能保持一致的操作体验。
+> 坐标体系：所有控件的位置与大小均采用百分比坐标 (0.0 - 1.0)，可跨分辨率复用布局数据。
 
 ---
 
-## ✨ Features (核心特性)
-
-### 🎮 Rich Controls (丰富的控件库)
-- **Joystick**: Analog output, customizable deadzone, lock mode, L3/R3 support. (模拟量输出、死区调节、锁定模式)
-- **D-Pad**: 8-way directional input (Up, Down, Left, Right + Diagonals). (8方向输入)
-- **Buttons**: Tap, Hold, Double-Tap triggers. Support for Turbo/Macro. (多种触发模式、连发/宏)
-- **Mouse**: Left/Right click, Scroll Wheel, Touchpad area. (鼠标键、滚轮、触控板)
-- **Scroll Stick**: Linear controller optimized for side-scrolling. (侧边滚动条)
-
-### 🎨 Pro Styling (专业级定制)
-- **Visuals**: Custom colors, borders, shadows (neon/glow effects), and gradients. (自定义颜色、边框、阴影/霓虹效果)
-- **Textures**: Support for image backgrounds (sprites) for normal and pressed states. (支持图片纹理/皮肤)
-- **Feedback**: Haptic feedback (vibration) on interaction. (触觉反馈)
-
-### 🛠 Runtime Editor (内置布局编辑器)
-- **Drag & Drop**: Move, resize, and configure controls at runtime. (运行时拖拽、缩放)
-- **Storage Agnostic**: Load/Save layouts from JSON, compatible with SharedPreferences, Hive, or backend APIs. (存储无关，支持 JSON 导入导出)
-- **Magnetism**: Auto-snap alignment. (自动吸附)
+## Features（功能清单）
+- 控件：Joystick / D-Pad / Buttons / Mouse Button / Wheel / Split Mouse / Scroll Stick / Key / KeyCluster
+- 输入：强类型 `InputBinding`（键盘/手柄），支持注册自定义按钮
+- 样式：`ControlStyle`（shape/border/radius/shadow/image/label 等）
+- 编辑器：运行时拖拽/缩放/透明度；保存为最小化 `VirtualControllerState` JSON
 
 ---
 
@@ -42,16 +28,34 @@ Add this to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  virtual_gamepad_pro: ^0.1.2
+  virtual_gamepad_pro: ^0.2.0
 ```
 
 ---
 
+## Concepts（必读：定义 vs 状态）
+
+- **Definition**：`VirtualControllerLayout`，由业务代码创建，包含控件类型、输入绑定、样式、默认位置等。
+- **State**：`VirtualControllerState`，只包含编辑器允许修改的信息：`layout(x/y/width/height)` + `opacity`，适合存储与分享。
+
+State JSON 例子（可直接分享/落盘）：
+
+```json
+{
+  "schemaVersion": 1,
+  "controls": [
+    { "id": "a", "layout": { "x": 0.77, "y": 0.66, "width": 0.11, "height": 0.07 }, "opacity": 0.5 }
+  ]
+}
+```
+
 ## ⚡ Quick Start (快速上手)
 
-### 1. Basic Usage (基础用法)
+### 1) 渲染 Overlay（definition + state）
 
-Render a simple controller overlay on top of your game view.
+建议把布局拆成两部分：
+- `VirtualControllerLayout`：控件定义（binding/style/默认 layout 等，业务代码控制）
+- `VirtualControllerState`：用户可编辑状态（只包含 position/size/opacity，可序列化分享）
 
 ```dart
 import 'package:flutter/material.dart';
@@ -60,8 +64,7 @@ import 'package:virtual_gamepad_pro/virtual_gamepad_pro.dart';
 class GamePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    // Define a layout programmatically
-    final layout = VirtualControllerLayout(
+    final definition = VirtualControllerLayout(
       schemaVersion: 1,
       name: 'Default',
       controls: [
@@ -69,6 +72,7 @@ class GamePage extends StatelessWidget {
           id: 'ls',
           label: 'LS',
           layout: ControlLayout(x: 0.1, y: 0.6, width: 0.2, height: 0.2), 
+          trigger: TriggerType.hold,
           stickType: 'left',
         ),
         VirtualButton(
@@ -76,9 +80,12 @@ class GamePage extends StatelessWidget {
           label: 'A',
           layout: ControlLayout(x: 0.8, y: 0.7, width: 0.1, height: 0.1),
           trigger: TriggerType.tap,
+          binding: const GamepadButtonBinding(GamepadButtonId.a),
         ),
       ],
     );
+
+    final state = const VirtualControllerState(schemaVersion: 1, controls: []);
 
     return Scaffold(
       body: Stack(
@@ -88,12 +95,15 @@ class GamePage extends StatelessWidget {
           
           // Controller Overlay
           VirtualControllerOverlay(
-            layout: layout,
+            definition: definition,
+            state: state,
             onInputEvent: (event) {
               if (event is GamepadAxisInputEvent) {
                 print('Axis ${event.axisId}: ${event.x}, ${event.y}');
               } else if (event is GamepadButtonInputEvent) {
                 print('Button ${event.button}: ${event.isPressed}');
+              } else if (event is KeyboardInputEvent) {
+                print('Key ${event.key}: ${event.isPressed}');
               }
             },
           ),
@@ -104,19 +114,56 @@ class GamePage extends StatelessWidget {
 }
 ```
 
-### 2. Styling (样式定制)
+### 2) 强类型绑定（InputBinding）
 
-Create a "Neon" style button.
+All interactive controls emit input via `InputBinding`.
+所有交互控件通过 `InputBinding` 来描述“按下的是什么”，避免 `String + Map` 的隐式约定。
 
 ```dart
-final neonStyle = ControlStyle(
-  shape: BoxShape.circle,
-  color: Colors.black.withOpacity(0.8),
-  borderColor: Colors.cyanAccent,
-  shadows: [
-    BoxShadow(color: Colors.cyanAccent.withOpacity(0.5), blurRadius: 10),
-  ],
-  labelStyle: TextStyle(color: Colors.cyanAccent, fontSize: 20),
+final kbd = VirtualKey(
+  id: 'kbd_space',
+  label: 'Space',
+  layout: const ControlLayout(x: 0.2, y: 0.8, width: 0.2, height: 0.1),
+  trigger: TriggerType.tap,
+  binding: const KeyboardBinding(key: KeyboardKey('Space')),
+);
+
+final a = VirtualButton(
+  id: 'btn_a',
+  label: 'A',
+  layout: const ControlLayout(x: 0.8, y: 0.7, width: 0.1, height: 0.1),
+  trigger: TriggerType.tap,
+  binding: const GamepadButtonBinding(GamepadButtonId.a),
+);
+```
+
+---
+
+### 3) 样式定制（宽高比、圆角、边框等）
+
+控件的宽高比由 `ControlLayout(width/height)` 决定；形状与边框由 `ControlStyle` 决定：
+
+```dart
+final pillStyle = ControlStyle(
+  shape: BoxShape.rectangle,
+  borderRadius: 999,
+  borderWidth: 2,
+  borderColor: Colors.white54,
+  color: Colors.black.withOpacity(0.45),
+);
+```
+
+#### label 支持 icon + text（上下布局）
+
+`ControlStyle` 支持独立配置图标与文字：两者都有则上下布局；缺一个则另一个居中。
+
+```dart
+final style = ControlStyle(
+  labelIcon: Icons.local_fire_department,
+  labelIconColor: Colors.orangeAccent,
+  labelIconScale: 0.62,
+  labelText: '开火',
+  labelStyle: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700),
 );
 ```
 
@@ -125,23 +172,25 @@ final neonStyle = ControlStyle(
 ## 📚 API Documentation (API 文档)
 
 ### 1. `VirtualControllerOverlay`
-The main widget to render the controller.
+渲染器入口（definition + state）。
 
 | Property | Type | Description (CN) |
 |----------|------|------------------|
-| `layout` | `VirtualControllerLayout` | The layout configuration object containing all controls. (布局配置对象) |
+| `definition` | `VirtualControllerLayout` | 控件定义（binding/style/默认 layout 等）。 |
+| `state` | `VirtualControllerState` | 可编辑状态（仅 position/size/opacity，适合 JSON 分享）。 |
 | `onInputEvent` | `Function(InputEvent)` | Callback for receiving input events. (输入事件回调) |
 | `opacity` | `double` | Global opacity of the overlay (0.0 - 1.0). (全局透明度) |
 | `showLabels` | `bool` | Whether to show text labels on controls. (是否显示标签) |
 
 ### 2. `VirtualControllerLayoutEditor`
-A full-screen widget for creating/editing layouts.
+运行时布局编辑器：只编辑 state（位置/大小/透明度），不会修改 binding/style/actions。
 
 | Property | Type | Description (CN) |
 |----------|------|------------------|
 | `layoutId` | `String` | Unique ID for the layout being edited. (布局ID) |
-| `load` | `Future<Layout> Function(id)` | Callback to load layout data. (加载回调) |
-| `save` | `Future<void> Function(id, layout)` | Callback to save layout data. (保存回调) |
+| `loadDefinition` | `Future<VirtualControllerLayout> Function(id)` | 加载控件定义（代码控制）。 |
+| `loadState` | `Future<VirtualControllerState> Function(id)` | 加载 state（JSON）。 |
+| `saveState` | `Future<void> Function(id, state)` | 保存 state（JSON）。 |
 | `previewDecorator` | `Function` | Optional hook to modify layout before preview (e.g. apply themes). (预览装饰器) |
 
 ### 3. `ControlStyle`
@@ -164,7 +213,7 @@ A virtual thumbstick.
 |----------|------|------------------|
 | `deadzone` | `double` | Minimum input value to register (0.0 - 1.0). Default: 0.1. (死区) |
 | `stickType` | `String` | `'left'` or `'right'`. Determines the event ID. (摇杆类型) |
-| `mode` | `String` | `'gamepad'` (axis events) or `'keyboard'` (WASD keys). (模式) |
+| `mode` | `String` | `'keyboard'` (WASD keys) or `'gamepad'` (axis events). (模式) |
 
 ### 5. `VirtualButton`
 A standard push button.
@@ -173,6 +222,14 @@ A standard push button.
 |----------|------|------------------|
 | `trigger` | `TriggerType` | `tap` (press/release), `hold` (continuous), `doubleTap`. (触发类型) |
 | `label` | `String` | Text displayed on the button. (标签文本) |
+| `binding` | `InputBinding` | Strong-typed binding for emitted input. (强类型绑定) |
+
+#### 5.1 Ultra Strong Typed Helper (极致强类型辅助)
+
+```dart
+final GamepadButtonId id = button.gamepadButton; // throws if not gamepad
+final GamepadButtonId? maybe = button.gamepadButtonOrNull;
+```
 
 ---
 
@@ -183,30 +240,48 @@ To use the editor, you must implement the persistence layer (load/save).
 
 ```dart
 // Example using SharedPreferences
-Future<void> saveLayout(String id, VirtualControllerLayout layout) async {
+Future<void> saveState(String id, VirtualControllerState state) async {
   final prefs = await SharedPreferences.getInstance();
-  // Serialize to JSON string
-  // 序列化为 JSON 字符串
-  final jsonStr = jsonEncode(layout.toJson()); 
-  await prefs.setString('layout_$id', jsonStr);
+  final jsonStr = jsonEncode(state.toJson());
+  await prefs.setString('layout_state_$id', jsonStr);
 }
 
-Future<VirtualControllerLayout> loadLayout(String id) async {
+Future<VirtualControllerState> loadState(String id) async {
   final prefs = await SharedPreferences.getInstance();
-  final jsonStr = prefs.getString('layout_$id');
-  if (jsonStr == null) return VirtualControllerLayout.xbox(); // Default
-  // Deserialize from JSON
-  // 反序列化
-  return VirtualControllerLayout.fromJson(jsonDecode(jsonStr));
+  final jsonStr = prefs.getString('layout_state_$id');
+  if (jsonStr == null) {
+    return const VirtualControllerState(schemaVersion: 1, controls: []);
+  }
+  return VirtualControllerState.fromJson(jsonDecode(jsonStr));
 }
 
-// In your Widget
+Future<VirtualControllerLayout> loadDefinition(String id) async {
+  return VirtualControllerLayout.xbox();
+}
+
+// In your Widget:
 VirtualControllerLayoutEditor(
   layoutId: 'user_custom_1',
-  load: loadLayout,
-  save: saveLayout,
+  loadDefinition: loadDefinition,
+  loadState: loadState,
+  saveState: saveState,
 )
 ```
+
+### Custom Gamepad Buttons (自定义手柄按钮)
+
+如果你希望支持额外按钮（例如 Turbo/截屏/OEM 键），在代码中先注册一个强类型按钮 ID，然后把它用于你的 definition（以及编辑器调色板）。
+
+```dart
+void main() {
+  InputBindingRegistry.registerGamepadButton(code: 'turbo', label: 'Turbo');
+  InputBindingRegistry.registerGamepadButton(code: 'screenshot', label: 'Shot');
+  runApp(const MyApp());
+}
+```
+
+Notes:
+- The editor palette will automatically show registered custom buttons.
 
 ---
 

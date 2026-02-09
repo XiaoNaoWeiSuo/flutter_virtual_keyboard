@@ -20,6 +20,15 @@ class ControlStyleJsonCodec {
       pressedBackgroundImagePath: _readString(json['pressedBackgroundImage']),
       opacity: (json['opacity'] as num? ?? 1.0).toDouble(),
       pressedOpacity: (json['pressedOpacity'] as num? ?? 0.8).toDouble(),
+      labelText: _readString(json['labelText']),
+      labelIcon: json['labelIcon'] is Map
+          ? _IconDataJsonCodec.maybeDecode(
+              Map<String, dynamic>.from(json['labelIcon'] as Map),
+            )
+          : null,
+      labelIconColor: _ColorJsonCodec.maybeDecode(json['labelIconColor']),
+      labelIconScale: (json['labelIconScale'] as num? ?? 0.6).toDouble(),
+      useGamepadSymbol: json['useGamepadSymbol'] as bool? ?? true,
       labelStyle: json['labelStyle'] is Map<String, dynamic>
           ? _TextStyleJsonCodec.maybeDecode(
               Map<String, dynamic>.from(json['labelStyle'] as Map),
@@ -66,6 +75,13 @@ class ControlStyleJsonCodec {
       if (pressedBgPath != null) 'pressedBackgroundImage': pressedBgPath,
       'opacity': style.opacity,
       'pressedOpacity': style.pressedOpacity,
+      if (style.labelText != null) 'labelText': style.labelText,
+      if (style.labelIcon != null)
+        'labelIcon': _IconDataJsonCodec.encode(style.labelIcon!),
+      if (style.labelIconColor != null)
+        'labelIconColor': _ColorJsonCodec.encode(style.labelIconColor!),
+      'labelIconScale': style.labelIconScale,
+      'useGamepadSymbol': style.useGamepadSymbol,
       if (style.labelStyle != null)
         'labelStyle': _TextStyleJsonCodec.encode(style.labelStyle!),
       if (style.shadows.isNotEmpty)
@@ -159,6 +175,32 @@ class _TextStyleJsonCodec {
       if (style.letterSpacing != null) 'letterSpacing': style.letterSpacing,
       if (style.fontWeight != null)
         'fontWeight': _FontWeightJsonCodec.encode(style.fontWeight!),
+    };
+  }
+}
+
+class _IconDataJsonCodec {
+  static IconData? maybeDecode(Map<String, dynamic> json) {
+    if (json.isEmpty) return null;
+    final codePoint = json['codePoint'];
+    if (codePoint is! int) return null;
+    final fontFamily = _readString(json['fontFamily']);
+    final fontPackage = _readString(json['fontPackage']);
+    final matchTextDirection = json['matchTextDirection'] as bool? ?? false;
+    return IconData(
+      codePoint,
+      fontFamily: fontFamily,
+      fontPackage: fontPackage,
+      matchTextDirection: matchTextDirection,
+    );
+  }
+
+  static Map<String, dynamic> encode(IconData icon) {
+    return <String, dynamic>{
+      'codePoint': icon.codePoint,
+      if (icon.fontFamily != null) 'fontFamily': icon.fontFamily,
+      if (icon.fontPackage != null) 'fontPackage': icon.fontPackage,
+      'matchTextDirection': icon.matchTextDirection,
     };
   }
 }

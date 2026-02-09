@@ -1,3 +1,11 @@
+## 0.2.0
+- **Breaking**: Introduced strong-typed `InputBinding` model for keyboard/gamepad input.
+- **Breaking**: `VirtualButton` now requires `binding` (replaces `config.padKey`-based resolution).
+- **Breaking**: `VirtualKey` now uses `binding: KeyboardBinding(...)` (replaces `key/modifiers/repeat` fields).
+- **Breaking**: `VirtualDpad` directions now map to typed bindings (replaces `mode` + string maps).
+- **Feat**: Added extensible `InputBindingRegistry` and `GamepadButtonId` to support custom strong-typed buttons with editor + JSON ecosystem.
+- **Perf**: Reduced runtime string parsing in widgets by resolving input codes in models.
+
 ## 0.1.2
 - **Fix**: Improved D-Pad label rendering with dynamic font sizing and clamping to prevent layout issues.
 - **Fix**: Added `FittedBox` to `ControlLabel` to prevent text overflow.

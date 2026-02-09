@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import '../../models/controls/virtual_dpad.dart';
+import '../../models/binding/binding.dart';
 import '../../models/input_event.dart';
 import '../../models/style/control_style.dart';
 import '../shared/control_utils.dart';
@@ -27,7 +28,7 @@ class VirtualDpadWidget extends StatefulWidget {
 
 class _VirtualDpadWidgetState extends State<VirtualDpadWidget> {
   // Track currently pressed directions
-  final Set<String> _pressedDirections = {};
+  final Set<DpadDirection> _pressedDirections = {};
 
   ui.FragmentProgram? _program;
 
@@ -40,8 +41,7 @@ class _VirtualDpadWidgetState extends State<VirtualDpadWidget> {
   Future<void> _loadShader() async {
     try {
       // When running in an app (like example/), package assets need the package prefix.
-      const assetKey =
-          'packages/virtual_gamepad_pro/lib/shaders/d_pad.frag';
+      const assetKey = 'packages/virtual_gamepad_pro/lib/shaders/d_pad.frag';
       final program = await ui.FragmentProgram.fromAsset(assetKey);
       if (mounted) {
         setState(() {
@@ -76,10 +76,10 @@ class _VirtualDpadWidgetState extends State<VirtualDpadWidget> {
     if (_pressedDirections.isNotEmpty) {
       double dx = 0;
       double dy = 0;
-      if (_pressedDirections.contains('up')) dy -= 1;
-      if (_pressedDirections.contains('down')) dy += 1;
-      if (_pressedDirections.contains('left')) dx -= 1;
-      if (_pressedDirections.contains('right')) dx += 1;
+      if (_pressedDirections.contains(DpadDirection.up)) dy -= 1;
+      if (_pressedDirections.contains(DpadDirection.down)) dy += 1;
+      if (_pressedDirections.contains(DpadDirection.left)) dx -= 1;
+      if (_pressedDirections.contains(DpadDirection.right)) dx += 1;
 
       if (dx != 0 || dy != 0) {
         final dist = math.sqrt(dx * dx + dy * dy);
@@ -150,7 +150,7 @@ class _VirtualDpadWidgetState extends State<VirtualDpadWidget> {
     // Actually, simple angle check is often enough for 8-way.
     // Let's use specific zones for the "Cross" shape feel.
 
-    final newDirections = <String>{};
+    final newDirections = <DpadDirection>{};
 
     // Check against the cross geometry
     // Horizontal band: y within center 1/3
@@ -176,34 +176,40 @@ class _VirtualDpadWidgetState extends State<VirtualDpadWidget> {
     // However, to simulate "Cross" feel, we might want to prioritize axes.
     // But standard gamepad D-pads allow rolling.
 
-    if (angleDeg >= -150 && angleDeg <= -30) newDirections.add('up');
-    if (angleDeg >= -60 && angleDeg <= 60) newDirections.add('right');
-    if (angleDeg >= 30 && angleDeg <= 150) newDirections.add('down');
-    if (angleDeg >= 120 || angleDeg <= -120) newDirections.add('left');
+    if (angleDeg >= -150 && angleDeg <= -30)
+      newDirections.add(DpadDirection.up);
+    if (angleDeg >= -60 && angleDeg <= 60)
+      newDirections.add(DpadDirection.right);
+    if (angleDeg >= 30 && angleDeg <= 150)
+      newDirections.add(DpadDirection.down);
+    if (angleDeg >= 120 || angleDeg <= -120)
+      newDirections.add(DpadDirection.left);
 
     // Filter impossible combinations (Up+Down, Left+Right) - Physics prevents this
-    if (newDirections.contains('up') && newDirections.contains('down')) {
+    if (newDirections.contains(DpadDirection.up) &&
+        newDirections.contains(DpadDirection.down)) {
       // Prefer the one with stronger magnitude? Or just clear both?
       // Usually impossible on physical, but here possible. Remove both or keep last?
       // Let's just keep vertical component based on y sign
       if (delta.dy < 0) {
-        newDirections.remove('down');
+        newDirections.remove(DpadDirection.down);
       } else {
-        newDirections.remove('up');
+        newDirections.remove(DpadDirection.up);
       }
     }
-    if (newDirections.contains('left') && newDirections.contains('right')) {
+    if (newDirections.contains(DpadDirection.left) &&
+        newDirections.contains(DpadDirection.right)) {
       if (delta.dx < 0) {
-        newDirections.remove('right');
+        newDirections.remove(DpadDirection.right);
       } else {
-        newDirections.remove('left');
+        newDirections.remove(DpadDirection.left);
       }
     }
 
     _updateEvents(newDirections);
   }
 
-  void _updateEvents(Set<String> newDirections) {
+  void _updateEvents(Set<DpadDirection> newDirections) {
     // Diff calculation
     final added = newDirections.difference(_pressedDirections);
     final removed = _pressedDirections.difference(newDirections);
@@ -229,28 +235,26 @@ class _VirtualDpadWidgetState extends State<VirtualDpadWidget> {
     }
   }
 
-  void _sendEvent(String direction, bool isDown) {
-    if (widget.control.mode == 'keyboard') {
-      final key = widget.control.directions[direction] ?? '';
-      if (key.isNotEmpty) {
-        widget.onInputEvent(
-            isDown ? KeyboardInputEvent.down(key) : KeyboardInputEvent.up(key));
-      }
-    } else {
-      final mapped = widget.control.directions[direction];
-      final buttonId =
-          (mapped != null && mapped.toLowerCase().startsWith('dpad_'))
-              ? mapped
-              : 'dpad_$direction';
+  void _sendEvent(DpadDirection direction, bool isDown) {
+    final binding = widget.control.directions[direction];
+    if (binding == null) return;
+    if (binding is KeyboardBinding) {
+      final key = binding.key.code.trim();
+      if (key.isEmpty) return;
       widget.onInputEvent(
-          GamepadButtonInputEvent(button: buttonId, isDown: isDown));
+          isDown ? KeyboardInputEvent.down(key) : KeyboardInputEvent.up(key));
+      return;
     }
+    final button = binding.code.trim();
+    if (button.isEmpty) return;
+    widget
+        .onInputEvent(GamepadButtonInputEvent(button: button, isDown: isDown));
   }
 }
 
 class _DpadPainter extends CustomPainter {
   final ControlStyle? style;
-  final Set<String> pressedDirections;
+  final Set<DpadDirection> pressedDirections;
   final ui.FragmentProgram? program;
   final Offset pressDir;
   final bool enable3D;
@@ -310,8 +314,8 @@ class _DpadPainter extends CustomPainter {
       ..addRRect(
           RRect.fromRectAndRadius(verticalRect, const Radius.circular(radius)));
     final pathH = Path()
-      ..addRRect(
-          RRect.fromRectAndRadius(horizontalRect, const Radius.circular(radius)));
+      ..addRRect(RRect.fromRectAndRadius(
+          horizontalRect, const Radius.circular(radius)));
 
     final fullCrossPath = Path.combine(PathOperation.union, pathV, pathH);
 
@@ -425,7 +429,7 @@ class _DpadPainter extends CustomPainter {
           PathOperation.intersect, fullCrossPath, transformedWedge);
     }
 
-    void drawButton(String dir, double angle) {
+    void drawButton(DpadDirection dir, double angle) {
       // Shift vector: same direction as angle
       final shift = Offset(math.cos(angle), math.sin(angle));
       var path = createButtonPath(angle, shift);
@@ -518,10 +522,10 @@ class _DpadPainter extends CustomPainter {
       canvas.drawPath(iconPath, iconPaint);
     }
 
-    drawButton('up', -math.pi / 2);
-    drawButton('down', math.pi / 2);
-    drawButton('left', math.pi);
-    drawButton('right', 0);
+    drawButton(DpadDirection.up, -math.pi / 2);
+    drawButton(DpadDirection.down, math.pi / 2);
+    drawButton(DpadDirection.left, math.pi);
+    drawButton(DpadDirection.right, 0);
   }
 
   @override
@@ -534,7 +538,7 @@ class _DpadPainter extends CustomPainter {
         oldDelegate.enable3D != enable3D;
   }
 
-  bool _setsEqual(Set<String> a, Set<String> b) {
+  bool _setsEqual(Set<DpadDirection> a, Set<DpadDirection> b) {
     if (a.length != b.length) return false;
     return a.containsAll(b);
   }

@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import '../../models/controls/virtual_button.dart';
 import '../../models/input_event.dart';
 import '../shared/control_container.dart';
+import '../shared/control_label.dart';
 import '../shared/gamepad_symbol.dart';
 import '../shared/control_utils.dart';
 
@@ -32,48 +33,14 @@ class VirtualButtonWidget extends StatefulWidget {
 class _VirtualButtonWidgetState extends State<VirtualButtonWidget> {
   bool _isPressed = false;
 
-  String _resolveGamepadButton() {
-    final fromConfig = widget.control.config['padKey'] ??
-        widget.control.config['button'] ??
-        widget.control.config['gamepadButton'];
-
-    String pickNonEmpty(List<String?> candidates) {
-      for (final c in candidates) {
-        final v = c?.trim();
-        if (v != null && v.isNotEmpty) return v;
-      }
-      return '';
-    }
-
-    final candidate = pickNonEmpty([
-      fromConfig?.toString(),
-      widget.control.label,
-    ]);
-
-    if (candidate.isNotEmpty) {
-      return _normalizeGamepadButton(candidate);
-    }
-
-    final id = widget.control.id;
-    final parts = id.split(RegExp(r'[_\-]'));
-    final last = parts.isNotEmpty ? parts.last : id;
-    return _normalizeGamepadButton(last);
-  }
-
-  String _normalizeGamepadButton(String raw) {
-    final lower = raw.trim().toLowerCase();
-    return switch (lower) {
-      '△' => 'triangle',
-      '○' => 'circle',
-      '□' => 'square',
-      '×' => 'cross',
-      _ => lower,
-    };
-  }
-
   @override
   Widget build(BuildContext context) {
-    final button = _resolveGamepadButton();
+    final button = widget.control.binding.code;
+    final style = widget.control.style;
+    final useSymbol = style?.useGamepadSymbol ?? true;
+    final text = style?.labelText ?? (useSymbol ? '' : widget.control.label);
+    final hasText = text.trim().isNotEmpty;
+    final hasCustomIcon = style?.labelIcon != null;
     return GestureDetector(
       onTapDown: (_) {
         setState(() => _isPressed = true);
@@ -99,14 +66,33 @@ class _VirtualButtonWidgetState extends State<VirtualButtonWidget> {
           child: widget.showLabel
               ? LayoutBuilder(
                   builder: (context, constraints) {
-                    // Use the smallest dimension to ensure the symbol fits
                     final size =
                         math.min(constraints.maxWidth, constraints.maxHeight);
-                    return GamepadSymbol(
-                      id: widget.control.id,
-                      label: widget.control.label,
-                      size: size,
-                      color: widget.control.style?.labelStyle?.color,
+                    final iconSize = size * (style?.labelIconScale ?? 0.6);
+                    final iconColor = style?.labelIconColor;
+
+                    Widget? iconWidget;
+                    if (hasCustomIcon) {
+                      iconWidget = Icon(
+                        style!.labelIcon,
+                        size: iconSize,
+                        color: iconColor ?? style.labelStyle?.color,
+                      );
+                    } else if (useSymbol) {
+                      iconWidget = GamepadSymbol(
+                        id: widget.control.id,
+                        label: widget.control.label,
+                        size: iconSize,
+                        color: iconColor ?? style?.labelStyle?.color,
+                      );
+                    }
+
+                    return ControlLabel(
+                      hasText ? text : '',
+                      style: style?.labelStyle,
+                      iconWidget: iconWidget,
+                      iconColor: iconColor,
+                      iconScale: style?.labelIconScale ?? 0.6,
                     );
                   },
                 )

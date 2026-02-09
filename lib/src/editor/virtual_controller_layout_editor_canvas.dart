@@ -116,7 +116,8 @@ class _ControlEditorItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final rect = ControlGeometry.occupiedRect(control, screenSize);
+    final rect =
+        ControlGeometry.occupiedRect(control, control.layout, screenSize);
 
     return Positioned(
       left: rect.left - hitPadding,
@@ -323,7 +324,7 @@ Widget _defaultControlPreviewBuilder(VirtualControl control) {
       style: control.style,
       defaultShape: BoxShape.rectangle,
       child: ControlLabel(
-        control.label.isNotEmpty ? control.label : control.key,
+        control.label.isNotEmpty ? control.label : control.binding.key.code,
         style: control.style?.labelStyle,
       ),
     );

@@ -110,7 +110,11 @@ class _Body extends StatelessWidget {
       VirtualControllerEditorPaletteTab.keyboard => _KeyboardPalette(
           previewMap: previewMap,
           onAdd: (k) => onAddControl(EditorControlFactory.keyWith(
-              key: k.key, label: k.label, modifiers: k.modifiers)),
+              key: KeyboardKey(k.key).normalized(),
+              label: k.label,
+              modifiers: k.modifiers
+                  .map((m) => KeyboardKey(m).normalized())
+                  .toList())),
         ),
       VirtualControllerEditorPaletteTab.mouseAndJoystick =>
         _MouseJoystickPalette(
@@ -330,6 +334,10 @@ class _GamepadPalette extends StatelessWidget {
     final row2 = isPs ? const ['Triangle', 'Circle'] : const ['Y', 'B'];
     final row3 = isPs ? const ['Square', 'Cross'] : const ['X', 'A'];
 
+    final customButtons = InputBindingRegistry.registeredGamepadButtons
+        .where((b) => !GamepadButtonId.builtIns.contains(b))
+        .toList();
+
     return LayoutBuilder(
       builder: (context, constraints) {
         const gap = 6.0;
@@ -358,7 +366,7 @@ class _GamepadPalette extends StatelessWidget {
         }
 
 //  SizedBox(height: rowHeight, child: buildRow(row1)),
-        return Column(
+        final main = Column(
           children: [
             Expanded(child: SizedBox(height: rowHeight, child: buildRow(row1))),
             Row(
@@ -389,18 +397,21 @@ class _GamepadPalette extends StatelessWidget {
                   ),
                 ),
                 SizedBox(
-                    width: rowHeight,
-                    height: rowHeight,
-                    child: Column(
-                      children: [
-                        Expanded(
-                            child: SizedBox(
-                                height: rowHeight, child: buildRow(row2))),
-                        Expanded(
-                            child: SizedBox(
-                                height: rowHeight, child: buildRow(row3))),
-                      ],
-                    )),
+                  width: rowHeight,
+                  height: rowHeight,
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child:
+                            SizedBox(height: rowHeight, child: buildRow(row2)),
+                      ),
+                      Expanded(
+                        child:
+                            SizedBox(height: rowHeight, child: buildRow(row3)),
+                      ),
+                    ],
+                  ),
+                ),
                 SizedBox(
                   width: rowHeight,
                   height: rowHeight,
@@ -414,7 +425,45 @@ class _GamepadPalette extends StatelessWidget {
                   ),
                 ),
               ],
-            )
+            ),
+          ],
+        );
+
+        if (customButtons.isEmpty) return main;
+
+        return Column(
+          children: [
+            Expanded(child: main),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: (rowHeight * 0.6).clamp(44.0, 96.0),
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                itemCount: customButtons.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (context, index) {
+                  final b = customButtons[index];
+                  final id = 'pad_${b.code}';
+                  final control = previewMap[id] as VirtualButton?;
+                  if (control == null) {
+                    return const SizedBox.shrink();
+                  }
+                  return SizedBox(
+                    width: (rowHeight * 0.6).clamp(44.0, 96.0),
+                    child: _ControlTile(
+                      onTap: () => onAdd(b.code),
+                      padding: const EdgeInsets.all(4),
+                      child: VirtualButtonWidget(
+                        control: control,
+                        onInputEvent: (_) {},
+                        showLabel: true,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
           ],
         );
       },
@@ -481,8 +530,12 @@ List<VirtualControl> _prototypesFor(VirtualControllerEditorPaletteTab tab) {
               layout: dummy,
               trigger: TriggerType.tap,
               config: const {},
-              key: k.key,
-              modifiers: k.modifiers,
+              binding: KeyboardBinding(
+                key: KeyboardKey(k.key).normalized(),
+                modifiers: k.modifiers
+                    .map((m) => KeyboardKey(m).normalized())
+                    .toList(),
+              ),
             ),
       ];
     case VirtualControllerEditorPaletteTab.mouseAndJoystick:
@@ -514,7 +567,12 @@ List<VirtualControl> _prototypesFor(VirtualControllerEditorPaletteTab tab) {
           label: '',
           layout: dummy,
           trigger: TriggerType.hold,
-          keys: const ['W', 'A', 'S', 'D'],
+          keys: const [
+            KeyboardKey('W'),
+            KeyboardKey('A'),
+            KeyboardKey('S'),
+            KeyboardKey('D'),
+          ],
           style: const ControlStyle(
             shape: BoxShape.circle,
             borderColor: Color(0xFF4DA3FF),
@@ -536,7 +594,12 @@ List<VirtualControl> _prototypesFor(VirtualControllerEditorPaletteTab tab) {
           label: '',
           layout: dummy,
           trigger: TriggerType.hold,
-          keys: const ['ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight'],
+          keys: const [
+            KeyboardKey('ArrowUp'),
+            KeyboardKey('ArrowLeft'),
+            KeyboardKey('ArrowDown'),
+            KeyboardKey('ArrowRight'),
+          ],
           style: const ControlStyle(
             shape: BoxShape.circle,
             borderColor: Color(0xFF66D19E),
@@ -558,13 +621,13 @@ List<VirtualControl> _prototypesFor(VirtualControllerEditorPaletteTab tab) {
           label: '',
           layout: dummy,
           trigger: TriggerType.hold,
-          mode: 'gamepad',
           enable3D: true,
           directions: const {
-            'up': 'dpad_up',
-            'down': 'dpad_down',
-            'left': 'dpad_left',
-            'right': 'dpad_right',
+            DpadDirection.up: GamepadButtonBinding(GamepadButtonId.dpadUp),
+            DpadDirection.down: GamepadButtonBinding(GamepadButtonId.dpadDown),
+            DpadDirection.left: GamepadButtonBinding(GamepadButtonId.dpadLeft),
+            DpadDirection.right:
+                GamepadButtonBinding(GamepadButtonId.dpadRight),
           },
           config: const {},
         ),
@@ -579,6 +642,9 @@ List<VirtualControl> _prototypesFor(VirtualControllerEditorPaletteTab tab) {
           ? const ['L1', 'R1', 'L2', 'R2']
           : const ['LB', 'RB', 'LT', 'RT'];
       final sys = isPs ? const ['Options', 'Share'] : const ['Start', 'Back'];
+      final customButtons = InputBindingRegistry.registeredGamepadButtons
+          .where((b) => !GamepadButtonId.builtIns.contains(b))
+          .toList();
       return [
         for (final k in [...face, ...shoulders, ...sys])
           VirtualButton(
@@ -586,20 +652,30 @@ List<VirtualControl> _prototypesFor(VirtualControllerEditorPaletteTab tab) {
             label: k,
             layout: dummy,
             trigger: TriggerType.hold,
-            config: {'padKey': k.toLowerCase()},
+            binding: GamepadButtonBinding(GamepadButtonId.parse(k)),
+            config: const {},
+          ),
+        for (final b in customButtons)
+          VirtualButton(
+            id: 'pad_${b.code}',
+            label: b.label ?? b.code,
+            layout: dummy,
+            trigger: TriggerType.hold,
+            binding: GamepadButtonBinding(b),
+            config: const {},
           ),
         VirtualDpad(
           id: 'pad_dpad',
           label: '',
           layout: dummy,
           trigger: TriggerType.hold,
-          mode: 'gamepad',
           enable3D: true,
           directions: const {
-            'up': 'dpad_up',
-            'down': 'dpad_down',
-            'left': 'dpad_left',
-            'right': 'dpad_right',
+            DpadDirection.up: GamepadButtonBinding(GamepadButtonId.dpadUp),
+            DpadDirection.down: GamepadButtonBinding(GamepadButtonId.dpadDown),
+            DpadDirection.left: GamepadButtonBinding(GamepadButtonId.dpadLeft),
+            DpadDirection.right:
+                GamepadButtonBinding(GamepadButtonId.dpadRight),
           },
           config: const {},
         ),

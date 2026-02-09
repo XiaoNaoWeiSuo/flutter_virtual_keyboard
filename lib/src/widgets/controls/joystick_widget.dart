@@ -299,10 +299,10 @@ class _VirtualJoystickWidgetState extends State<VirtualJoystickWidget> {
     final deadzone = widget.control.deadzone;
     final keys = widget.control.keys;
 
-    if (dy < -deadzone && keys.isNotEmpty) newActiveKeys.add(keys[0]);
-    if (dx < -deadzone && keys.length > 1) newActiveKeys.add(keys[1]);
-    if (dy > deadzone && keys.length > 2) newActiveKeys.add(keys[2]);
-    if (dx > deadzone && keys.length > 3) newActiveKeys.add(keys[3]);
+    if (dy < -deadzone && keys.isNotEmpty) newActiveKeys.add(keys[0].code);
+    if (dx < -deadzone && keys.length > 1) newActiveKeys.add(keys[1].code);
+    if (dy > deadzone && keys.length > 2) newActiveKeys.add(keys[2].code);
+    if (dx > deadzone && keys.length > 3) newActiveKeys.add(keys[3].code);
 
     for (final key in _activeKeys.difference(newActiveKeys)) {
       widget.onInputEvent(KeyboardInputEvent.up(key));

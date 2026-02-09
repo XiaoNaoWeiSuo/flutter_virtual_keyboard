@@ -52,9 +52,9 @@ class EditorControlFactory {
   }
 
   static VirtualKey keyWith({
-    required String key,
+    required KeyboardKey key,
     required String label,
-    List<String> modifiers = const [],
+    List<KeyboardKey> modifiers = const [],
     ControlLayout? layout,
   }) {
     return VirtualKey(
@@ -63,8 +63,7 @@ class EditorControlFactory {
       layout: layout ?? _keyboardInitialLayoutFor(label),
       trigger: TriggerType.tap,
       config: const {},
-      key: key,
-      modifiers: modifiers,
+      binding: KeyboardBinding(key: key, modifiers: modifiers),
     );
   }
 
@@ -112,7 +111,12 @@ class EditorControlFactory {
       layout: layout ??
           const ControlLayout(x: 0.1, y: 0.6, width: 0.18, height: 0.28),
       trigger: TriggerType.hold,
-      keys: const ['W', 'A', 'S', 'D'],
+      keys: const [
+        KeyboardKey('W'),
+        KeyboardKey('A'),
+        KeyboardKey('S'),
+        KeyboardKey('D'),
+      ],
       style: _wasdStickStyle,
       feedback: const ControlFeedback(vibration: true, vibrationType: 'medium'),
       config: const {
@@ -129,7 +133,12 @@ class EditorControlFactory {
       layout: layout ??
           const ControlLayout(x: 0.1, y: 0.6, width: 0.18, height: 0.28),
       trigger: TriggerType.hold,
-      keys: const ['ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight'],
+      keys: const [
+        KeyboardKey('ArrowUp'),
+        KeyboardKey('ArrowLeft'),
+        KeyboardKey('ArrowDown'),
+        KeyboardKey('ArrowRight'),
+      ],
       style: _arrowsStickStyle,
       feedback: const ControlFeedback(vibration: true, vibrationType: 'medium'),
       config: const {
@@ -195,28 +204,28 @@ class EditorControlFactory {
       layout: layout ??
           const ControlLayout(x: 0.12, y: 0.6, width: 0.20, height: 0.20),
       trigger: TriggerType.hold,
-      mode: 'gamepad',
       enable3D: true,
       directions: const {
-        'up': 'dpad_up',
-        'down': 'dpad_down',
-        'left': 'dpad_left',
-        'right': 'dpad_right',
+        DpadDirection.up: GamepadButtonBinding(GamepadButtonId.dpadUp),
+        DpadDirection.down: GamepadButtonBinding(GamepadButtonId.dpadDown),
+        DpadDirection.left: GamepadButtonBinding(GamepadButtonId.dpadLeft),
+        DpadDirection.right: GamepadButtonBinding(GamepadButtonId.dpadRight),
       },
       config: {},
     );
   }
 
   static VirtualButton gamepadButton(String label, {ControlLayout? layout}) {
-    final padKey = label.toLowerCase();
+    final parsed = GamepadButtonId.parse(label);
     return VirtualButton(
-      id: 'btn_${padKey}_${DateTime.now().microsecondsSinceEpoch}',
+      id: 'btn_${parsed.code}_${DateTime.now().microsecondsSinceEpoch}',
       label: label,
       layout: layout ??
           const ControlLayout(x: 0.75, y: 0.55, width: 0.12, height: 0.12),
       trigger: TriggerType.hold,
+      binding: GamepadButtonBinding(parsed),
       actions: const [],
-      config: {'padKey': padKey},
+      config: const {},
     );
   }
 
@@ -239,19 +248,21 @@ class EditorControlFactory {
     );
   }
 
-  static (String key, String label, List<String> modifiers) _normalizeKey(
-      String raw) {
+  static (KeyboardKey key, String label, List<KeyboardKey> modifiers)
+      _normalizeKey(String raw) {
     final trimmed = raw.trim();
-    if (trimmed.isEmpty) return ('', '', const []);
+    if (trimmed.isEmpty) {
+      return (const KeyboardKey(''), '', const []);
+    }
 
-    String normalizeMod(String s) {
+    KeyboardKey? normalizeMod(String s) {
       final lower = s.toLowerCase();
       return switch (lower) {
-        'shift' => 'Shift',
-        'ctrl' || 'control' => 'Ctrl',
-        'alt' => 'Alt',
-        'meta' || 'cmd' || 'win' => 'Meta',
-        _ => '',
+        'shift' => const KeyboardKey('Shift'),
+        'ctrl' || 'control' => const KeyboardKey('Ctrl'),
+        'alt' => const KeyboardKey('Alt'),
+        'meta' || 'cmd' || 'win' => const KeyboardKey('Meta'),
+        _ => null,
       };
     }
 
@@ -262,10 +273,10 @@ class EditorControlFactory {
           .where((e) => e.isNotEmpty)
           .toList();
       if (parts.length >= 2) {
-        final mods = <String>[];
+        final mods = <KeyboardKey>[];
         for (final m in parts.take(parts.length - 1)) {
           final normalized = normalizeMod(m);
-          if (normalized.isNotEmpty) mods.add(normalized);
+          if (normalized != null) mods.add(normalized);
         }
         final last = parts.last;
         final (key, label, _) = _normalizeKey(last);
@@ -274,17 +285,17 @@ class EditorControlFactory {
     }
 
     if (trimmed == '~') {
-      return ('`', '~', const ['Shift']);
+      return (const KeyboardKey('`'), '~', const [KeyboardKey('Shift')]);
     }
 
     return switch (trimmed) {
-      'Caps' => ('CapsLock', 'CapsLock', const []),
-      'Win' => ('Meta', 'Win', const []),
-      '↑' => ('ArrowUp', '↑', const []),
-      '↓' => ('ArrowDown', '↓', const []),
-      '←' => ('ArrowLeft', '←', const []),
-      '→' => ('ArrowRight', '→', const []),
-      _ => (trimmed, trimmed, const []),
+      'Caps' => (const KeyboardKey('CapsLock'), 'CapsLock', const []),
+      'Win' => (const KeyboardKey('Meta'), 'Win', const []),
+      '↑' => (const KeyboardKey('ArrowUp'), '↑', const []),
+      '↓' => (const KeyboardKey('ArrowDown'), '↓', const []),
+      '←' => (const KeyboardKey('ArrowLeft'), '←', const []),
+      '→' => (const KeyboardKey('ArrowRight'), '→', const []),
+      _ => (KeyboardKey(trimmed).normalized(), trimmed, const []),
     };
   }
 }

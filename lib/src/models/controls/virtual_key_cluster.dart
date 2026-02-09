@@ -4,6 +4,7 @@ import '../style/control_style.dart';
 import '../style/control_feedback.dart';
 import 'virtual_control.dart';
 import 'virtual_key.dart';
+import '../binding/binding.dart';
 
 /// Virtual Key Cluster Control.
 ///
@@ -68,10 +69,10 @@ class VirtualKeyCluster extends VirtualControl {
   final double spacing;
 
   /// Expand the cluster into individual VirtualKey instances.
-  List<VirtualKey> expandToKeys(Size screenSize) {
+  List<VirtualKey> expandToKeys(ControlLayout clusterLayout) {
     final keys = <VirtualKey>[];
-    final baseX = layout.x;
-    final baseY = layout.y;
+    final baseX = clusterLayout.x;
+    final baseY = clusterLayout.y;
 
     for (int row = 0; row < grid.length; row++) {
       for (int col = 0; col < grid[row].length; col++) {
@@ -91,7 +92,7 @@ class VirtualKeyCluster extends VirtualControl {
             height: keySize.height,
           ),
           trigger: trigger,
-          key: keyName,
+          binding: KeyboardBinding(key: KeyboardKey(keyName).normalized()),
           style: style, // Inherit style
           feedback: feedback, // Inherit feedback
         ));

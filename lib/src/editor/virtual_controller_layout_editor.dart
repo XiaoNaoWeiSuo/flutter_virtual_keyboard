@@ -22,20 +22,19 @@ class VirtualControllerLayoutEditor extends StatefulWidget {
   /// Creates an editor instance.
   ///
   /// [layoutId] is the unique identifier for the layout to be edited.
-  /// [load] is called to retrieve the initial layout state.
-  /// [save] is called when the user triggers a save action.
+  /// The editor loads a **definition** (code-driven) and a **state** (user-edited).
   const VirtualControllerLayoutEditor({
     super.key,
     required this.layoutId,
-    required this.load,
-    required this.save,
+    required this.loadDefinition,
+    required this.loadState,
+    required this.saveState,
     this.previewDecorator,
     this.onClose,
     this.readOnly = false,
-    this.allowAddRemove = true,
+    this.allowAddRemove = false,
     this.allowResize = true,
     this.allowMove = true,
-    this.allowRename = true,
     this.enabledPaletteTabs = const {
       VirtualControllerEditorPaletteTab.keyboard,
       VirtualControllerEditorPaletteTab.mouseAndJoystick,
@@ -48,12 +47,16 @@ class VirtualControllerLayoutEditor extends StatefulWidget {
   /// The ID of the layout to edit. Passed to [load] and [save].
   final String layoutId;
 
-  /// Callback to load the layout. Must return a [VirtualControllerLayout].
-  final Future<VirtualControllerLayout> Function(String layoutId) load;
+  /// Callback to load the definition (control types, bindings, styles...).
+  final Future<VirtualControllerLayout> Function(String layoutId)
+      loadDefinition;
 
-  /// Callback to save the layout.
-  final Future<void> Function(String layoutId, VirtualControllerLayout layout)
-      save;
+  /// Callback to load the editable state (position/size/opacity).
+  final Future<VirtualControllerState> Function(String layoutId) loadState;
+
+  /// Callback to save the editable state (position/size/opacity).
+  final Future<void> Function(String layoutId, VirtualControllerState state)
+      saveState;
 
   /// Optional decorator to modify the layout before previewing in the palette.
   /// Useful for applying global themes to palette items.
@@ -75,9 +78,6 @@ class VirtualControllerLayoutEditor extends StatefulWidget {
   /// Whether moving controls is allowed.
   final bool allowMove;
 
-  /// Whether renaming the layout is allowed.
-  final bool allowRename;
-
   /// The set of tabs to show in the control palette.
   final Set<VirtualControllerEditorPaletteTab> enabledPaletteTabs;
 
@@ -95,10 +95,7 @@ class _VirtualControllerLayoutEditorState
   bool _loading = true;
   String? _error;
 
-  final _nameController = TextEditingController();
-  final _renameFocusNode = FocusNode();
   Size _lastCanvasSize = Size.zero;
-  bool _renaming = false;
   bool _dockCollapsed = false;
 
   @override
@@ -110,8 +107,6 @@ class _VirtualControllerLayoutEditorState
   @override
   void dispose() {
     _controller?.dispose();
-    _nameController.dispose();
-    _renameFocusNode.dispose();
     super.dispose();
   }
 
@@ -121,17 +116,17 @@ class _VirtualControllerLayoutEditorState
       _error = null;
     });
     try {
-      final layout = await widget.load(widget.layoutId);
+      final definition = await widget.loadDefinition(widget.layoutId);
+      final state = await widget.loadState(widget.layoutId);
       _controller?.dispose();
       final c = VirtualControllerLayoutEditorController(
-        layout: layout,
+        definition: definition,
+        state: state,
         readOnly: widget.readOnly,
         allowAddRemove: widget.allowAddRemove,
         allowResize: widget.allowResize,
         allowMove: widget.allowMove,
-        allowRename: widget.allowRename,
       );
-      _nameController.text = layout.name;
       setState(() {
         _controller = c;
         _loading = false;
@@ -148,7 +143,7 @@ class _VirtualControllerLayoutEditorState
     final c = _controller;
     if (c == null) return;
     try {
-      await widget.save(widget.layoutId, c.layout);
+      await widget.saveState(widget.layoutId, c.state);
       c.markSaved();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -209,34 +204,6 @@ class _VirtualControllerLayoutEditorState
         );
       },
     );
-  }
-
-  void _beginRename() {
-    final c = _controller;
-    if (c == null) return;
-    if (widget.readOnly || !widget.allowRename) return;
-    _nameController.text = c.layout.name;
-    setState(() => _renaming = true);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      FocusScope.of(context).requestFocus(_renameFocusNode);
-    });
-  }
-
-  void _cancelRename() {
-    if (!_renaming) return;
-    FocusScope.of(context).unfocus();
-    setState(() => _renaming = false);
-  }
-
-  void _commitRename() {
-    final c = _controller;
-    if (c == null) return;
-    final name = _nameController.text.trim();
-    if (name.isNotEmpty) {
-      c.renameLayout(name);
-    }
-    _cancelRename();
   }
 
   @override
@@ -313,7 +280,6 @@ class _VirtualControllerLayoutEditorState
                                     readOnly: widget.readOnly,
                                     allowAddRemove: widget.allowAddRemove,
                                     allowResize: widget.allowResize,
-                                    allowRename: widget.allowRename,
                                     enabledTabs: widget.enabledPaletteTabs,
                                     hasSelection: c.selectedControl != null,
                                     canSave: c.isDirty && !widget.readOnly,
@@ -327,7 +293,6 @@ class _VirtualControllerLayoutEditorState
                                     onToggleCollapsed: () => setState(
                                       () => _dockCollapsed = !_dockCollapsed,
                                     ),
-                                    onBeginRename: _beginRename,
                                     onDeselect: () => c.selectControl(null),
                                     onOpenKeyboard: () => _openPaletteFor(
                                         VirtualControllerEditorPaletteTab
@@ -339,7 +304,6 @@ class _VirtualControllerLayoutEditorState
                                         VirtualControllerEditorPaletteTab.xbox),
                                     onOpenPs: () => _openPaletteFor(
                                         VirtualControllerEditorPaletteTab.ps),
-                                    onDelete: c.deleteSelected,
                                     onReset: _confirmReset,
                                     onSizeChanged: (v) =>
                                         c.setSelectedScale(v, _lastCanvasSize),
@@ -349,38 +313,6 @@ class _VirtualControllerLayoutEditorState
                                 ),
                               ),
                             ),
-                            if (_renaming) ...[
-                              Positioned.fill(
-                                child: GestureDetector(
-                                  behavior: HitTestBehavior.translucent,
-                                  onTap: _cancelRename,
-                                  child: const SizedBox.expand(),
-                                ),
-                              ),
-                              Positioned(
-                                left: 0,
-                                right: 0,
-                                bottom: 0,
-                                child: AnimatedPadding(
-                                  duration: const Duration(milliseconds: 160),
-                                  curve: Curves.easeOut,
-                                  padding: EdgeInsets.only(
-                                    bottom: MediaQuery.of(context)
-                                        .viewInsets
-                                        .bottom,
-                                  ),
-                                  child: SafeArea(
-                                    top: false,
-                                    child: _RenameBar(
-                                      controller: _nameController,
-                                      focusNode: _renameFocusNode,
-                                      onCancel: _cancelRename,
-                                      onSubmit: _commitRename,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
                           ],
                         );
                       },
@@ -395,7 +327,6 @@ class _DockPanel extends StatelessWidget {
     required this.readOnly,
     required this.allowAddRemove,
     required this.allowResize,
-    required this.allowRename,
     required this.enabledTabs,
     required this.hasSelection,
     required this.canSave,
@@ -404,13 +335,11 @@ class _DockPanel extends StatelessWidget {
     required this.onClose,
     required this.onSave,
     required this.onToggleCollapsed,
-    required this.onBeginRename,
     required this.onDeselect,
     required this.onOpenKeyboard,
     required this.onOpenMouse,
     required this.onOpenXbox,
     required this.onOpenPs,
-    required this.onDelete,
     required this.onReset,
     required this.onSizeChanged,
     required this.onOpacityChanged,
@@ -421,7 +350,6 @@ class _DockPanel extends StatelessWidget {
   final bool readOnly;
   final bool allowAddRemove;
   final bool allowResize;
-  final bool allowRename;
   final Set<VirtualControllerEditorPaletteTab> enabledTabs;
   final bool hasSelection;
   final bool canSave;
@@ -431,13 +359,11 @@ class _DockPanel extends StatelessWidget {
   final VoidCallback onClose;
   final VoidCallback onSave;
   final VoidCallback onToggleCollapsed;
-  final VoidCallback onBeginRename;
   final VoidCallback onDeselect;
   final VoidCallback onOpenKeyboard;
   final VoidCallback onOpenMouse;
   final VoidCallback onOpenXbox;
   final VoidCallback onOpenPs;
-  final VoidCallback onDelete;
   final VoidCallback onReset;
   final ValueChanged<double> onSizeChanged;
   final ValueChanged<double> onOpacityChanged;
@@ -481,22 +407,18 @@ class _DockPanel extends StatelessWidget {
                     tooltip: '折叠',
                   ),
                   Expanded(
-                    child: InkWell(
-                      onTap: (!readOnly && allowRename) ? onBeginRename : null,
-                      borderRadius: BorderRadius.circular(10),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 8),
-                        child: Text(
-                          title,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 8),
+                      child: Text(
+                        title,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ),
@@ -513,13 +435,6 @@ class _DockPanel extends StatelessWidget {
                       icon: const Icon(Icons.done_outline,
                           color: Colors.lightBlueAccent, size: 18),
                       tooltip: '完成',
-                    ),
-                    IconButton(
-                      onPressed: !readOnly ? onDelete : null,
-                      icon: Icon(Icons.delete,
-                          color: !readOnly ? Colors.redAccent : Colors.white24,
-                          size: 18),
-                      tooltip: '删除',
                     ),
                     IconButton(
                       onPressed: onReset,
@@ -734,65 +649,6 @@ class _SmallSlider extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _RenameBar extends StatelessWidget {
-  const _RenameBar({
-    required this.controller,
-    required this.focusNode,
-    required this.onCancel,
-    required this.onSubmit,
-  });
-
-  final TextEditingController controller;
-  final FocusNode focusNode;
-  final VoidCallback onCancel;
-  final VoidCallback onSubmit;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: const Color(0xFF1C1C1E).withValues(alpha: 0.96),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
-        child: Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: controller,
-                focusNode: focusNode,
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  hintText: '方案名称',
-                  hintStyle: const TextStyle(color: Colors.white38),
-                  filled: true,
-                  fillColor: Colors.white10,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                ),
-                textInputAction: TextInputAction.done,
-                onSubmitted: (_) => onSubmit(),
-              ),
-            ),
-            const SizedBox(width: 8),
-            TextButton(
-              onPressed: onCancel,
-              child: const Text('取消'),
-            ),
-            const SizedBox(width: 4),
-            ElevatedButton(
-              onPressed: onSubmit,
-              child: const Text('确定'),
-            ),
-          ],
-        ),
       ),
     );
   }

@@ -54,7 +54,7 @@ class _VirtualKeyWidgetState extends State<VirtualKeyWidget> {
           child: widget.showLabel
               ? ControlLabel(
                   widget.control.label.isEmpty
-                      ? widget.control.key
+                      ? widget.control.binding.key.code
                       : widget.control.label,
                   style: widget.control.style?.labelStyle,
                 )
@@ -68,16 +68,16 @@ class _VirtualKeyWidgetState extends State<VirtualKeyWidget> {
     setState(() => _isPressed = true);
     triggerFeedback(widget.control.feedback, true);
     widget.onInputEvent(KeyboardInputEvent.down(
-      widget.control.key,
-      widget.control.modifiers,
+      widget.control.binding.key.code,
+      widget.control.binding.modifiers.map((m) => m.code).toList(),
     ));
 
-    if (widget.control.repeat) {
+    if (widget.control.binding.repeat) {
       _repeatTimer = Timer.periodic(
         const Duration(milliseconds: 50),
         (_) => widget.onInputEvent(KeyboardInputEvent.down(
-          widget.control.key,
-          widget.control.modifiers,
+          widget.control.binding.key.code,
+          widget.control.binding.modifiers.map((m) => m.code).toList(),
         )),
       );
     }
@@ -92,8 +92,8 @@ class _VirtualKeyWidgetState extends State<VirtualKeyWidget> {
     setState(() => _isPressed = false);
     triggerFeedback(widget.control.feedback, false);
     widget.onInputEvent(KeyboardInputEvent.up(
-      widget.control.key,
-      widget.control.modifiers,
+      widget.control.binding.key.code,
+      widget.control.binding.modifiers.map((m) => m.code).toList(),
     ));
   }
 }

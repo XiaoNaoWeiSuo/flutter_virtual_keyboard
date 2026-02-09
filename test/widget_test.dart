@@ -15,6 +15,7 @@ void main() {
           label: 'A',
           layout: const ControlLayout(x: 0.8, y: 0.8, width: 0.1, height: 0.1),
           trigger: TriggerType.tap,
+          binding: const GamepadButtonBinding(GamepadButtonId.a),
         ),
       ],
     );
@@ -24,7 +25,8 @@ void main() {
       MaterialApp(
         home: Scaffold(
           body: VirtualControllerOverlay(
-            layout: layout,
+            definition: layout,
+            state: const VirtualControllerState(schemaVersion: 1, controls: []),
             onInputEvent: (event) {},
           ),
         ),

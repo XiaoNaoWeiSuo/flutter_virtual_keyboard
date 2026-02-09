@@ -5,14 +5,19 @@ import 'resize_direction.dart';
 
 class VirtualControllerLayoutEditorController extends ChangeNotifier {
   VirtualControllerLayoutEditorController({
-    required VirtualControllerLayout layout,
+    required VirtualControllerLayout definition,
+    required VirtualControllerState state,
     this.readOnly = false,
-    this.allowAddRemove = true,
+    this.allowAddRemove = false,
     this.allowResize = true,
     this.allowMove = true,
-    this.allowRename = true,
-  }) : _layout = layout;
+    this.allowRename = false,
+  })  : _definition = definition,
+        _state = state,
+        _layout = _applyState(definition, state);
 
+  final VirtualControllerLayout _definition;
+  VirtualControllerState _state;
   VirtualControllerLayout _layout;
   VirtualControl? _selected;
   ControlLayout? _selectedBaseLayout;
@@ -26,21 +31,24 @@ class VirtualControllerLayoutEditorController extends ChangeNotifier {
   final bool allowRename;
 
   VirtualControllerLayout get layout => _layout;
+  VirtualControllerLayout get definition => _definition;
+  VirtualControllerState get state => _state;
   VirtualControl? get selectedControl => _selected;
   double get selectedScale => _selectedScale;
   double get selectedOpacity {
-    final v = _selected?.config['opacity'];
-    if (v is num) return v.toDouble().clamp(0.0, 1.0);
-    return 1.0;
+    final id = _selected?.id;
+    if (id == null) return 1.0;
+    return (_state.stateFor(id)?.opacity ?? 1.0).clamp(0.0, 1.0);
   }
 
   bool get isDirty => _isDirty;
 
-  void replaceLayout(VirtualControllerLayout layout, {bool markDirty = false}) {
-    _layout = layout;
+  void replaceState(VirtualControllerState state, {bool markDirty = false}) {
+    _state = state;
+    _layout = _applyState(_definition, _state);
     _isDirty = markDirty;
     if (_selected != null) {
-      final next = layout.controls
+      final next = _layout.controls
           .where((c) => c.id == _selected!.id)
           .cast<VirtualControl?>()
           .firstOrNull;
@@ -52,13 +60,6 @@ class VirtualControllerLayoutEditorController extends ChangeNotifier {
 
   void renameLayout(String name) {
     if (readOnly || !allowRename) return;
-    _layout = VirtualControllerLayout(
-      schemaVersion: _layout.schemaVersion,
-      name: name,
-      controls: _layout.controls,
-    );
-    _isDirty = true;
-    notifyListeners();
   }
 
   void selectControl(VirtualControl? control) {
@@ -70,45 +71,30 @@ class VirtualControllerLayoutEditorController extends ChangeNotifier {
 
   void addControl(VirtualControl control) {
     if (readOnly || !allowAddRemove) return;
-    final nextControls = List<VirtualControl>.from(_layout.controls)
-      ..add(control);
-    _layout = VirtualControllerLayout(
-      schemaVersion: _layout.schemaVersion,
-      name: _layout.name,
-      controls: nextControls,
-    );
-    _isDirty = true;
-    selectControl(control);
   }
 
   void deleteSelected() {
     if (readOnly || !allowAddRemove) return;
-    final selected = _selected;
-    if (selected == null) return;
-    final nextControls =
-        _layout.controls.where((c) => c.id != selected.id).toList();
-    _layout = VirtualControllerLayout(
-      schemaVersion: _layout.schemaVersion,
-      name: _layout.name,
-      controls: nextControls,
-    );
-    _isDirty = true;
-    selectControl(null);
   }
 
   void updateControl(VirtualControl updated) {
-    final idx = _layout.controls.indexWhere((c) => c.id == updated.id);
-    if (idx == -1) return;
-    final nextControls = List<VirtualControl>.from(_layout.controls);
-    nextControls[idx] = updated;
-    _layout = VirtualControllerLayout(
-      schemaVersion: _layout.schemaVersion,
-      name: _layout.name,
-      controls: nextControls,
+    final opacityRaw = updated.config['opacity'];
+    final opacity = (opacityRaw is num ? opacityRaw.toDouble() : null) ??
+        (_state.stateFor(updated.id)?.opacity ?? 1.0);
+    _state = _state.upsert(
+      VirtualControlState(
+        id: updated.id,
+        layout: updated.layout,
+        opacity: opacity.clamp(0.0, 1.0),
+      ),
     );
+    _layout = _applyState(_definition, _state);
     _isDirty = true;
     if (_selected?.id == updated.id) {
-      _selected = updated;
+      _selected = _layout.controls
+          .where((c) => c.id == updated.id)
+          .cast<VirtualControl?>()
+          .firstOrNull;
     }
     notifyListeners();
   }
@@ -230,10 +216,15 @@ class VirtualControllerLayoutEditorController extends ChangeNotifier {
     final selected = _selected;
     if (selected == null) return;
     final nextOpacity = opacity.clamp(0.05, 1.0);
-    final nextConfig = Map<String, dynamic>.from(selected.config);
-    nextConfig['opacity'] = nextOpacity;
-    final updated = _cloneWithOverrides(selected, config: nextConfig);
-    updateControl(updated);
+    _state = _state.upsert(
+      VirtualControlState(
+        id: selected.id,
+        layout: selected.layout,
+        opacity: nextOpacity,
+      ),
+    );
+    _layout = _applyState(_definition, _state);
+    _isDirty = true;
     notifyListeners();
   }
 
@@ -259,7 +250,8 @@ class VirtualControllerLayoutEditorController extends ChangeNotifier {
     Size canvasSize,
   ) {
     final temp = _cloneWithLayout(control, layout);
-    final occupied = ControlGeometry.occupiedLayout(temp, canvasSize);
+    final occupied =
+        ControlGeometry.occupiedLayout(temp, temp.layout, canvasSize);
     final x = occupied.x.clamp(0.0, 1.0 - occupied.width);
     final y = occupied.y.clamp(0.0, 1.0 - occupied.height);
     return ControlLayout(
@@ -291,6 +283,7 @@ class VirtualControllerLayoutEditorController extends ChangeNotifier {
         label: nextLabel,
         layout: nextLayout,
         trigger: control.trigger,
+        binding: control.binding,
         config: nextConfig,
         actions: control.actions,
         style: style ?? control.style,
@@ -321,9 +314,7 @@ class VirtualControllerLayoutEditorController extends ChangeNotifier {
         layout: nextLayout,
         trigger: control.trigger,
         config: nextConfig,
-        key: control.key,
-        modifiers: control.modifiers,
-        repeat: control.repeat,
+        binding: control.binding,
         style: style ?? control.style,
         feedback: control.feedback,
       );
@@ -389,7 +380,6 @@ class VirtualControllerLayoutEditorController extends ChangeNotifier {
         config: nextConfig,
         actions: control.actions,
         directions: control.directions,
-        mode: control.mode,
         enable3D: control.enable3D,
         style: style ?? control.style,
         feedback: control.feedback,
@@ -437,4 +427,185 @@ class VirtualControllerLayoutEditorController extends ChangeNotifier {
 
 extension<T> on Iterable<T> {
   T? get firstOrNull => isEmpty ? null : first;
+}
+
+VirtualControllerLayout _applyState(
+  VirtualControllerLayout definition,
+  VirtualControllerState state,
+) {
+  final stateById = state.byId;
+  final controls = <VirtualControl>[];
+  for (final c in definition.controls) {
+    final s = stateById[c.id];
+    if (s == null) {
+      controls.add(c);
+      continue;
+    }
+    final nextConfig = Map<String, dynamic>.from(c.config);
+    nextConfig['opacity'] = s.opacity;
+    controls.add(
+        _cloneControlWithOverrides(c, layout: s.layout, config: nextConfig));
+  }
+  return VirtualControllerLayout(
+    schemaVersion: definition.schemaVersion,
+    name: definition.name,
+    controls: controls,
+  );
+}
+
+VirtualControl _cloneControlWithOverrides(
+  VirtualControl control, {
+  ControlLayout? layout,
+  ControlStyle? style,
+  String? label,
+  Map<String, dynamic>? config,
+}) {
+  final nextLayout = layout ?? control.layout;
+  final nextLabel = label ?? control.label;
+  final nextConfig = config ?? control.config;
+  if (control is VirtualButton) {
+    return VirtualButton(
+      id: control.id,
+      label: nextLabel,
+      layout: nextLayout,
+      trigger: control.trigger,
+      binding: control.binding,
+      config: nextConfig,
+      actions: control.actions,
+      style: style ?? control.style,
+      feedback: control.feedback,
+    );
+  }
+  if (control is VirtualJoystick) {
+    return VirtualJoystick(
+      id: control.id,
+      label: nextLabel,
+      layout: nextLayout,
+      trigger: control.trigger,
+      config: nextConfig,
+      actions: control.actions,
+      deadzone: control.deadzone,
+      mode: control.mode,
+      stickType: control.stickType,
+      keys: control.keys,
+      axes: control.axes,
+      style: style ?? control.style,
+      feedback: control.feedback,
+    );
+  }
+  if (control is VirtualKey) {
+    return VirtualKey(
+      id: control.id,
+      label: nextLabel,
+      layout: nextLayout,
+      trigger: control.trigger,
+      config: nextConfig,
+      binding: control.binding,
+      style: style ?? control.style,
+      feedback: control.feedback,
+    );
+  }
+  if (control is VirtualMouseButton) {
+    return VirtualMouseButton(
+      id: control.id,
+      label: nextLabel,
+      layout: nextLayout,
+      trigger: control.trigger,
+      config: nextConfig,
+      button: control.button,
+      clickType: control.clickType,
+      style: style ?? control.style,
+      feedback: control.feedback,
+    );
+  }
+  if (control is VirtualMouseWheel) {
+    return VirtualMouseWheel(
+      id: control.id,
+      label: nextLabel,
+      layout: nextLayout,
+      trigger: control.trigger,
+      config: nextConfig,
+      direction: control.direction,
+      step: control.step,
+      style: style ?? control.style,
+      feedback: control.feedback,
+    );
+  }
+  if (control is VirtualKeyCluster) {
+    return VirtualKeyCluster(
+      id: control.id,
+      label: nextLabel,
+      layout: nextLayout,
+      trigger: control.trigger,
+      config: nextConfig,
+      grid: control.grid,
+      keySize: control.keySize,
+      spacing: control.spacing,
+      style: style ?? control.style,
+      feedback: control.feedback,
+    );
+  }
+  if (control is VirtualMacroButton) {
+    return VirtualMacroButton(
+      id: control.id,
+      label: nextLabel,
+      layout: nextLayout,
+      trigger: control.trigger,
+      config: nextConfig,
+      sequence: control.sequence,
+      style: style ?? control.style,
+      feedback: control.feedback,
+    );
+  }
+  if (control is VirtualDpad) {
+    return VirtualDpad(
+      id: control.id,
+      label: nextLabel,
+      layout: nextLayout,
+      trigger: control.trigger,
+      config: nextConfig,
+      actions: control.actions,
+      directions: control.directions,
+      enable3D: control.enable3D,
+      style: style ?? control.style,
+      feedback: control.feedback,
+    );
+  }
+  if (control is VirtualScrollStick) {
+    return VirtualScrollStick(
+      id: control.id,
+      label: nextLabel,
+      layout: nextLayout,
+      trigger: control.trigger,
+      config: nextConfig,
+      sensitivity: control.sensitivity,
+      style: style ?? control.style,
+      feedback: control.feedback,
+    );
+  }
+  if (control is VirtualSplitMouse) {
+    return VirtualSplitMouse(
+      id: control.id,
+      label: nextLabel,
+      layout: nextLayout,
+      trigger: control.trigger,
+      config: nextConfig,
+      style: style ?? control.style,
+      feedback: control.feedback,
+    );
+  }
+  if (control is VirtualCustomControl) {
+    return VirtualCustomControl(
+      id: control.id,
+      label: nextLabel,
+      layout: nextLayout,
+      trigger: control.trigger,
+      config: nextConfig,
+      actions: control.actions,
+      customData: control.customData,
+      style: style ?? control.style,
+      feedback: control.feedback,
+    );
+  }
+  return control;
 }

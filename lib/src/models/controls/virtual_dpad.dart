@@ -2,7 +2,10 @@ import '../style/control_layout.dart';
 import '../style/control_style.dart';
 import '../style/control_feedback.dart';
 import '../action/control_action.dart';
+import '../binding/binding.dart';
 import 'virtual_control.dart';
+
+enum DpadDirection { up, down, left, right }
 
 /// Virtual D-Pad Control.
 ///
@@ -18,15 +21,17 @@ class VirtualDpad extends VirtualControl {
     super.actions,
     super.style,
     super.feedback,
-    Map<String, String>? directions,
-    this.mode = 'keyboard', // keyboard, gamepad
+    Map<DpadDirection, InputBinding>? directions,
     this.enable3D = false,
   })  : directions = directions ??
-            {
-              'up': 'ArrowUp',
-              'down': 'ArrowDown',
-              'left': 'ArrowLeft',
-              'right': 'ArrowRight',
+            const {
+              DpadDirection.up: KeyboardBinding(key: KeyboardKey('ArrowUp')),
+              DpadDirection.down:
+                  KeyboardBinding(key: KeyboardKey('ArrowDown')),
+              DpadDirection.left:
+                  KeyboardBinding(key: KeyboardKey('ArrowLeft')),
+              DpadDirection.right:
+                  KeyboardBinding(key: KeyboardKey('ArrowRight')),
             },
         super(type: 'dpad');
 
@@ -35,10 +40,52 @@ class VirtualDpad extends VirtualControl {
     final actionsJson = json['actions'] as List? ?? [];
     final configMap = Map<String, dynamic>.from(json['config'] as Map? ?? {});
 
-    // Parse directions from config
-    Map<String, String>? directionsMap;
-    if (configMap.containsKey('directions')) {
-      directionsMap = Map<String, String>.from(configMap['directions'] as Map);
+    Map<DpadDirection, InputBinding>? directions;
+    final bindingsRaw = configMap['bindings'];
+    if (bindingsRaw is Map) {
+      final map = Map<String, dynamic>.from(bindingsRaw);
+      final resolved = <DpadDirection, InputBinding>{};
+      for (final entry in map.entries) {
+        final dir = tryParseDpadDirection(entry.key);
+        if (dir == null) {
+          throw FormatException('Unknown dpad direction: ${entry.key}');
+        }
+        final value = entry.value;
+        if (value == null) {
+          throw FormatException(
+              'Missing binding for dpad direction: ${entry.key}');
+        }
+        resolved[dir] = InputBinding.fromJson(value);
+      }
+      if (resolved.isNotEmpty) directions = resolved;
+    }
+
+    final legacyDirectionsRaw = configMap['directions'];
+    if (directions == null && legacyDirectionsRaw is Map) {
+      final legacy = Map<String, dynamic>.from(legacyDirectionsRaw);
+      final mode = configMap['mode']?.toString().trim().toLowerCase();
+      final resolved = <DpadDirection, InputBinding>{};
+      for (final entry in legacy.entries) {
+        final dir = tryParseDpadDirection(entry.key);
+        if (dir == null) continue;
+        final raw = entry.value?.toString() ?? '';
+        if (mode == 'gamepad') {
+          final parsed = raw.trim().isEmpty
+              ? null
+              : InputBindingRegistry.tryGetGamepadButton(raw);
+          final button = parsed ??
+              switch (dir) {
+                DpadDirection.up => GamepadButtonId.dpadUp,
+                DpadDirection.down => GamepadButtonId.dpadDown,
+                DpadDirection.left => GamepadButtonId.dpadLeft,
+                DpadDirection.right => GamepadButtonId.dpadRight,
+              };
+          resolved[dir] = GamepadButtonBinding(button);
+        } else {
+          resolved[dir] = KeyboardBinding(key: KeyboardKey(raw).normalized());
+        }
+      }
+      if (resolved.isNotEmpty) directions = resolved;
     }
 
     return VirtualDpad(
@@ -50,8 +97,7 @@ class VirtualDpad extends VirtualControl {
       actions: actionsJson
           .map((a) => ControlAction.fromJson(a as Map<String, dynamic>))
           .toList(),
-      directions: directionsMap,
-      mode: configMap['mode'] as String? ?? 'keyboard',
+      directions: directions,
       enable3D: configMap['enable3D'] as bool? ?? false,
       style: json['style'] != null
           ? ControlStyle.fromJson(json['style'] as Map<String, dynamic>)
@@ -62,11 +108,7 @@ class VirtualDpad extends VirtualControl {
     );
   }
 
-  /// Mapping of directions (up, down, left, right) to key/button codes.
-  final Map<String, String> directions;
-
-  /// Input mode: 'keyboard' or 'gamepad'.
-  final String mode;
+  final Map<DpadDirection, InputBinding> directions;
 
   /// Whether to enable 3D rendering (shader).
   final bool enable3D;
@@ -80,12 +122,22 @@ class VirtualDpad extends VirtualControl {
         'trigger': triggerTypeToString(trigger),
         'config': {
           ...config,
-          'directions': directions,
-          'mode': mode,
+          'bindings': directions.map((k, v) => MapEntry(k.name, v.toJson())),
           'enable3D': enable3D,
         },
         'actions': actions.map((a) => a.toJson()).toList(),
         if (style != null) 'style': style!.toJson(),
         if (feedback != null) 'feedback': feedback!.toJson(),
       };
+}
+
+DpadDirection? tryParseDpadDirection(String raw) {
+  final lower = raw.trim().toLowerCase();
+  return switch (lower) {
+    'up' => DpadDirection.up,
+    'down' => DpadDirection.down,
+    'left' => DpadDirection.left,
+    'right' => DpadDirection.right,
+    _ => null,
+  };
 }

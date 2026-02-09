@@ -23,6 +23,11 @@ class ControlStyle {
     this.pressedBackgroundImagePath,
     this.opacity = 1.0,
     this.pressedOpacity = 0.8,
+    this.labelText,
+    this.labelIcon,
+    this.labelIconColor,
+    this.labelIconScale = 0.6,
+    this.useGamepadSymbol = true,
     this.labelStyle,
     this.shadows = const [],
     this.pressedShadows = const [],
@@ -75,6 +80,23 @@ class ControlStyle {
 
   /// The opacity in pressed state (0.0 - 1.0).
   final double pressedOpacity;
+
+  /// Optional label text override.
+  ///
+  /// If null, widgets use the control's `label`.
+  final String? labelText;
+
+  /// Optional label icon.
+  final IconData? labelIcon;
+
+  /// Optional color override for label icon.
+  final Color? labelIconColor;
+
+  /// Icon size factor (relative to available label size).
+  final double labelIconScale;
+
+  /// Whether to render built-in gamepad symbols for gamepad controls when no icon is provided.
+  final bool useGamepadSymbol;
 
   /// The text style for the control label.
   final TextStyle? labelStyle;

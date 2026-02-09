@@ -2,6 +2,7 @@ import '../style/control_layout.dart';
 import '../style/control_style.dart';
 import '../style/control_feedback.dart';
 import '../action/control_action.dart';
+import '../binding/binding.dart';
 import 'virtual_control.dart';
 
 /// Virtual Joystick Control.
@@ -21,7 +22,12 @@ class VirtualJoystick extends VirtualControl {
     this.deadzone = 0.1,
     this.mode = 'keyboard', // keyboard, gamepad
     this.stickType = 'left', // left, right (for gamepad mode)
-    this.keys = const ['W', 'A', 'S', 'D'], // Up, Left, Down, Right
+    this.keys = const [
+      KeyboardKey('W'),
+      KeyboardKey('A'),
+      KeyboardKey('S'),
+      KeyboardKey('D'),
+    ], // Up, Left, Down, Right
     this.axes = const ['left_x', 'left_y'], // X, Y axis IDs for gamepad
   }) : super(type: 'joystick');
 
@@ -42,25 +48,8 @@ class VirtualJoystick extends VirtualControl {
       keys = List<String>.from(actions.first.config['keys'] as List);
     }
 
-    String normalizeDirectionKey(String raw) {
-      final t = raw.trim();
-      if (t.isEmpty) return raw;
-      return switch (t) {
-        '↑' => 'ArrowUp',
-        '↓' => 'ArrowDown',
-        '←' => 'ArrowLeft',
-        '→' => 'ArrowRight',
-        _ => switch (t.toLowerCase()) {
-            'up' => 'ArrowUp',
-            'down' => 'ArrowDown',
-            'left' => 'ArrowLeft',
-            'right' => 'ArrowRight',
-            _ => raw,
-          },
-      };
-    }
-
-    keys = keys.map(normalizeDirectionKey).toList();
+    final normalizedKeys =
+        keys.map((k) => KeyboardKey(k).normalized()).toList(growable: false);
 
     return VirtualJoystick(
       id: json['id'] as String,
@@ -72,7 +61,7 @@ class VirtualJoystick extends VirtualControl {
       deadzone: (config['deadzone'] as num?)?.toDouble() ?? 0.1,
       mode: config['mode'] as String? ?? 'keyboard',
       stickType: config['stickType'] as String? ?? 'left',
-      keys: keys,
+      keys: normalizedKeys,
       axes: List<String>.from(config['axes'] as List? ?? ['left_x', 'left_y']),
       style: json['style'] != null
           ? ControlStyle.fromJson(json['style'] as Map<String, dynamic>)
@@ -93,7 +82,7 @@ class VirtualJoystick extends VirtualControl {
   final String stickType;
 
   /// Keys mapped to Up, Left, Down, Right (Keyboard mode).
-  final List<String> keys;
+  final List<KeyboardKey> keys;
 
   /// Axis IDs mapped to X and Y (Gamepad mode).
   final List<String> axes;
@@ -110,7 +99,7 @@ class VirtualJoystick extends VirtualControl {
           'deadzone': deadzone,
           'mode': mode,
           'stickType': stickType,
-          'keys': keys,
+          'keys': keys.map((k) => k.code).toList(),
           'axes': axes,
         },
         'actions': actions.map((a) => a.toJson()).toList(),

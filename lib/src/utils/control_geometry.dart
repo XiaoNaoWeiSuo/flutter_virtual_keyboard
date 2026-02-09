@@ -3,8 +3,12 @@ import 'package:flutter/material.dart';
 import '../models/virtual_controller_models.dart';
 
 class ControlGeometry {
-  static Rect occupiedRect(VirtualControl control, Size screenSize) {
-    var rect = control.layout.toRect(screenSize);
+  static Rect occupiedRect(
+    VirtualControl control,
+    ControlLayout layout,
+    Size screenSize,
+  ) {
+    var rect = layout.toRect(screenSize);
 
     if (_shouldBeSquare(control)) {
       final size = math.min(rect.width, rect.height);
@@ -18,8 +22,12 @@ class ControlGeometry {
     return rect;
   }
 
-  static ControlLayout occupiedLayout(VirtualControl control, Size screenSize) {
-    final rect = occupiedRect(control, screenSize);
+  static ControlLayout occupiedLayout(
+    VirtualControl control,
+    ControlLayout layout,
+    Size screenSize,
+  ) {
+    final rect = occupiedRect(control, layout, screenSize);
     final w = screenSize.width == 0 ? 1 : screenSize.width;
     final h = screenSize.height == 0 ? 1 : screenSize.height;
     return ControlLayout(
@@ -30,9 +38,13 @@ class ControlGeometry {
     );
   }
 
-  static Rect safeRect(VirtualControl control, Size screenSize,
-      {double borderPadding = 2.0}) {
-    final r = occupiedRect(control, screenSize);
+  static Rect safeRect(
+    VirtualControl control,
+    ControlLayout layout,
+    Size screenSize, {
+    double borderPadding = 2.0,
+  }) {
+    final r = occupiedRect(control, layout, screenSize);
     final inset = _safeInsetFor(control, r.size) + borderPadding;
     return Rect.fromLTWH(
       r.left + inset,
