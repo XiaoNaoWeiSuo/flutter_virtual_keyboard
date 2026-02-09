@@ -67,8 +67,7 @@ class _VirtualJoystickWidgetState extends State<VirtualJoystickWidget> {
           shape: BoxShape.circle,
           color: backgroundColor,
           border: Border.all(
-              color: _isLocked ? lockedColor : borderColor,
-              width: borderWidth),
+              color: _isLocked ? lockedColor : borderColor, width: borderWidth),
           image: backgroundImage != null
               ? DecorationImage(
                   image: backgroundImage,
@@ -124,8 +123,7 @@ class _VirtualJoystickWidgetState extends State<VirtualJoystickWidget> {
                         : null,
                   ),
                   child: _isLocked
-                      ? Icon(Icons.lock,
-                          color: lockedColor, size: 14)
+                      ? Icon(Icons.lock, color: lockedColor, size: 14)
                       : null,
                 ),
               ),
@@ -201,9 +199,8 @@ class _VirtualJoystickWidgetState extends State<VirtualJoystickWidget> {
 
     final center = Offset(size.width / 2, size.height / 2);
     final maxRadius = size.width / 2 - 12;
-    // Threshold for over-push (heavy vibration + click).
-    // Now triggers at Edge (1.0 radius) with 0.5s Delay
-    final overPushThreshold = maxRadius;
+    final overPushThreshold =
+        maxRadius + (maxRadius * 0.12).clamp(8.0, 14.0).toDouble();
     // Threshold for Lock (Level 3)
     final lockThreshold = maxRadius * 2.0;
 
