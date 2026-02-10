@@ -1,6 +1,7 @@
 import 'dart:html' as html;
 
 import 'kv_store_stub.dart';
+export 'kv_store_stub.dart' show KeyValueStore;
 
 class _WebLocalStorageStore implements KeyValueStore {
   @override

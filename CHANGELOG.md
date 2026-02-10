@@ -1,3 +1,9 @@
+## 0.2.1
+- **Fix**: Correctly merge and propagate `config` in `VirtualJoystick` and `VirtualDpad` editors.
+- **Change**: `VirtualDpad` defaults to `enable3D: false` for cleaner flat design.
+- **Change**: `VirtualJoystick` defaults `stickClickEnabled` and `stickLockEnabled` to `false`.
+- **Example**: Major UI overhaul with Apple-style design, hover effects, and improved layout management (rename/duplicate/import/export).
+
 ## 0.2.0
 - **Breaking**: Introduced strong-typed `InputBinding` model for keyboard/gamepad input.
 - **Breaking**: `VirtualButton` now requires `binding` (replaces `config.padKey`-based resolution).

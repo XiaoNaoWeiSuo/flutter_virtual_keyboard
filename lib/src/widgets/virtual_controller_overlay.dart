@@ -107,8 +107,9 @@ class _VirtualControllerOverlayState extends State<VirtualControllerOverlay> {
       final s = stateById[control.id];
       final layout = s?.layout ?? control.layout;
       final opacity = (s?.opacity ?? 1.0).clamp(0.0, 1.0);
+      final effectiveControl = _applyStateToControl(control, s);
       if (control is VirtualKeyCluster) {
-        final keys = control.expandToKeys(layout);
+        final keys = (effectiveControl as VirtualKeyCluster).expandToKeys(layout);
         for (final k in keys) {
           resolved.add(_ResolvedControl(
             control: k,
@@ -118,7 +119,7 @@ class _VirtualControllerOverlayState extends State<VirtualControllerOverlay> {
         }
       } else {
         resolved.add(_ResolvedControl(
-          control: control,
+          control: effectiveControl,
           layout: layout,
           opacity: opacity,
         ));
@@ -129,8 +130,9 @@ class _VirtualControllerOverlayState extends State<VirtualControllerOverlay> {
       if (definitionIds.contains(s.id)) continue;
       final dynamic = _dynamicControlFromId(s.id, s.layout);
       if (dynamic == null) continue;
+      final effectiveDynamic = _applyStateToControl(dynamic, s);
       resolved.add(_ResolvedControl(
-        control: dynamic,
+        control: effectiveDynamic,
         layout: s.layout,
         opacity: (s.opacity).clamp(0.0, 1.0),
       ));
@@ -199,6 +201,175 @@ class _VirtualControllerOverlayState extends State<VirtualControllerOverlay> {
       _ => DefaultControlWidget(control: control),
     };
   }
+}
+
+VirtualControl _applyStateToControl(
+  VirtualControl control,
+  VirtualControlState? state,
+) {
+  if (state == null || state.config.isEmpty) return control;
+  final mergedConfig = Map<String, dynamic>.from(control.config);
+  mergedConfig.addAll(state.config);
+
+  if (control is VirtualJoystick) {
+    return VirtualJoystick(
+      id: control.id,
+      label: control.label,
+      layout: control.layout,
+      trigger: control.trigger,
+      config: mergedConfig,
+      actions: control.actions,
+      deadzone: control.deadzone,
+      mode: control.mode,
+      stickType: control.stickType,
+      keys: control.keys,
+      axes: control.axes,
+      style: control.style,
+      feedback: control.feedback,
+    );
+  }
+
+  if (control is VirtualDpad) {
+    final enable3D = mergedConfig['enable3D'] is bool
+        ? mergedConfig['enable3D'] as bool
+        : control.enable3D;
+    return VirtualDpad(
+      id: control.id,
+      label: control.label,
+      layout: control.layout,
+      trigger: control.trigger,
+      config: mergedConfig,
+      actions: control.actions,
+      directions: control.directions,
+      enable3D: enable3D,
+      style: control.style,
+      feedback: control.feedback,
+    );
+  }
+
+  if (control is VirtualButton) {
+    return VirtualButton(
+      id: control.id,
+      label: control.label,
+      layout: control.layout,
+      trigger: control.trigger,
+      binding: control.binding,
+      config: mergedConfig,
+      actions: control.actions,
+      style: control.style,
+      feedback: control.feedback,
+    );
+  }
+
+  if (control is VirtualKey) {
+    return VirtualKey(
+      id: control.id,
+      label: control.label,
+      layout: control.layout,
+      trigger: control.trigger,
+      config: mergedConfig,
+      binding: control.binding,
+      style: control.style,
+      feedback: control.feedback,
+    );
+  }
+
+  if (control is VirtualMouseButton) {
+    return VirtualMouseButton(
+      id: control.id,
+      label: control.label,
+      layout: control.layout,
+      trigger: control.trigger,
+      config: mergedConfig,
+      button: control.button,
+      clickType: control.clickType,
+      style: control.style,
+      feedback: control.feedback,
+    );
+  }
+
+  if (control is VirtualMouseWheel) {
+    return VirtualMouseWheel(
+      id: control.id,
+      label: control.label,
+      layout: control.layout,
+      trigger: control.trigger,
+      config: mergedConfig,
+      direction: control.direction,
+      step: control.step,
+      style: control.style,
+      feedback: control.feedback,
+    );
+  }
+
+  if (control is VirtualKeyCluster) {
+    return VirtualKeyCluster(
+      id: control.id,
+      label: control.label,
+      layout: control.layout,
+      trigger: control.trigger,
+      config: mergedConfig,
+      grid: control.grid,
+      keySize: control.keySize,
+      spacing: control.spacing,
+      style: control.style,
+      feedback: control.feedback,
+    );
+  }
+
+  if (control is VirtualMacroButton) {
+    return VirtualMacroButton(
+      id: control.id,
+      label: control.label,
+      layout: control.layout,
+      trigger: control.trigger,
+      config: mergedConfig,
+      sequence: control.sequence,
+      style: control.style,
+      feedback: control.feedback,
+    );
+  }
+
+  if (control is VirtualScrollStick) {
+    return VirtualScrollStick(
+      id: control.id,
+      label: control.label,
+      layout: control.layout,
+      trigger: control.trigger,
+      config: mergedConfig,
+      sensitivity: control.sensitivity,
+      style: control.style,
+      feedback: control.feedback,
+    );
+  }
+
+  if (control is VirtualSplitMouse) {
+    return VirtualSplitMouse(
+      id: control.id,
+      label: control.label,
+      layout: control.layout,
+      trigger: control.trigger,
+      config: mergedConfig,
+      style: control.style,
+      feedback: control.feedback,
+    );
+  }
+
+  if (control is VirtualCustomControl) {
+    return VirtualCustomControl(
+      id: control.id,
+      label: control.label,
+      layout: control.layout,
+      trigger: control.trigger,
+      config: mergedConfig,
+      actions: control.actions,
+      customData: control.customData,
+      style: control.style,
+      feedback: control.feedback,
+    );
+  }
+
+  return control;
 }
 
 class _ResolvedControl {
@@ -281,7 +452,7 @@ VirtualControl? _dynamicControlFromId(String id, ControlLayout layout) {
       label: '',
       layout: layout,
       trigger: TriggerType.hold,
-      enable3D: true,
+      enable3D: false,
       directions: const {
         DpadDirection.up: GamepadButtonBinding(GamepadButtonId.dpadUp),
         DpadDirection.down: GamepadButtonBinding(GamepadButtonId.dpadDown),
@@ -338,6 +509,8 @@ VirtualControl? _dynamicControlFromId(String id, ControlLayout layout) {
       config: const {
         'centerLabel': 'L',
         'overlayStyle': 'center',
+        'stickClickEnabled': false,
+        'stickLockEnabled': false,
       },
     );
   }
@@ -352,6 +525,8 @@ VirtualControl? _dynamicControlFromId(String id, ControlLayout layout) {
       config: const {
         'centerLabel': 'R',
         'overlayStyle': 'center',
+        'stickClickEnabled': false,
+        'stickLockEnabled': false,
       },
     );
   }

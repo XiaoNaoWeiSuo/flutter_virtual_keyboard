@@ -441,9 +441,9 @@ class _DpadPainter extends CustomPainter {
         final bounds = path.getBounds();
         final btnCenter = bounds.center;
         final matrix = Matrix4.identity()
-          ..setTranslationRaw(btnCenter.dx, btnCenter.dy, 0)
-          ..multiply(Matrix4.diagonal3Values(0.92, 0.92, 1.0))
-          ..setTranslationRaw(-btnCenter.dx, -btnCenter.dy, 0);
+          ..translateByDouble(btnCenter.dx, btnCenter.dy, 0, 1)
+          ..scaleByDouble(0.92, 0.92, 1.0, 1)
+          ..translateByDouble(-btnCenter.dx, -btnCenter.dy, 0, 1);
         path = path.transform(matrix.storage);
       }
 

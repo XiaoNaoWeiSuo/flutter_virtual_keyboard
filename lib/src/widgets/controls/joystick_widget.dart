@@ -29,18 +29,21 @@ class _VirtualJoystickWidgetState extends State<VirtualJoystickWidget> {
   Set<String> _activeKeys = {};
 
   // Interaction State
-  bool _wasAtEdge = false;
-  bool _wasOverPushed = false;
+  bool _isStickClickDown = false;
+  bool _showStickClickHint = false;
+  Offset _stickClickHintOffset = Offset.zero;
   bool _isLocked = false;
   Timer? _lockTimer;
-  Timer? _overPushTimer;
   double _currentAngle = 0.0;
   double _currentMagnitude = 0.0; // 0.0 to 1.0 (clamped)
+
+  double _lastAxisX = 0.0;
+  double _lastAxisY = 0.0;
+  int _lastAxisSentUs = 0;
 
   @override
   void dispose() {
     _lockTimer?.cancel();
-    _overPushTimer?.cancel();
     super.dispose();
   }
 
@@ -52,11 +55,14 @@ class _VirtualJoystickWidgetState extends State<VirtualJoystickWidget> {
     final borderWidth = style?.borderWidth ?? 2.0;
     final stickColor = style?.pressedColor ?? Colors.white.withAlpha(200);
     final lockedColor = style?.lockedColor ?? Colors.cyanAccent;
+    final clickColor = style?.pressedBorderColor ?? Colors.orangeAccent;
 
     final backgroundImage =
         style?.backgroundImage ?? getImageProvider(style?.backgroundImagePath);
     final pressedImage = style?.pressedBackgroundImage ??
         getImageProvider(style?.pressedBackgroundImagePath);
+    final stickClickEnabled =
+        widget.control.config['stickClickEnabled'] == true;
 
     return GestureDetector(
       onPanStart: _onPanStart,
@@ -67,7 +73,10 @@ class _VirtualJoystickWidgetState extends State<VirtualJoystickWidget> {
           shape: BoxShape.circle,
           color: backgroundColor,
           border: Border.all(
-              color: _isLocked ? lockedColor : borderColor, width: borderWidth),
+              color: _isLocked
+                  ? lockedColor
+                  : (_isStickClickDown ? clickColor : borderColor),
+              width: borderWidth),
           image: backgroundImage != null
               ? DecorationImage(
                   image: backgroundImage,
@@ -86,7 +95,9 @@ class _VirtualJoystickWidgetState extends State<VirtualJoystickWidget> {
                 ? lockedColor
                 : (_lockTimer != null
                     ? Colors.yellowAccent
-                    : borderColor.withAlpha(255)),
+                    : (_isStickClickDown
+                        ? clickColor
+                        : borderColor.withAlpha(255))),
           ),
           child: Stack(
             alignment: Alignment.center,
@@ -97,6 +108,37 @@ class _VirtualJoystickWidgetState extends State<VirtualJoystickWidget> {
                   color: style?.labelStyle?.color ?? Colors.white70,
                 ),
               ),
+              if (stickClickEnabled &&
+                  _showStickClickHint &&
+                  !_isLocked &&
+                  !_isStickClickDown)
+                Transform.translate(
+                  offset: _stickClickHintOffset,
+                  child: IgnorePointer(
+                    child: Container(
+                      width: 22,
+                      height: 22,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white.withValues(alpha: 0.06),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.18),
+                          width: 1,
+                        ),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        'S',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.35),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          height: 1.0,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               // Stick
               Transform.translate(
                 offset: _stickPosition,
@@ -124,6 +166,9 @@ class _VirtualJoystickWidgetState extends State<VirtualJoystickWidget> {
                   ),
                   child: _isLocked
                       ? Icon(Icons.lock, color: lockedColor, size: 14)
+                      : _isStickClickDown
+                          ? Icon(Icons.sports_esports,
+                              color: clickColor, size: 14)
                       : null,
                 ),
               ),
@@ -140,6 +185,9 @@ class _VirtualJoystickWidgetState extends State<VirtualJoystickWidget> {
       setState(() {
         _isLocked = false;
       });
+      if (_isStickClickDown) {
+        _emitStickClick(false);
+      }
       triggerFeedback(widget.control.feedback, true, type: 'light');
     }
     triggerFeedback(widget.control.feedback, true);
@@ -153,8 +201,6 @@ class _VirtualJoystickWidgetState extends State<VirtualJoystickWidget> {
   void _onPanEnd(DragEndDetails details) {
     _lockTimer?.cancel();
     _lockTimer = null;
-    _overPushTimer?.cancel();
-    _overPushTimer = null;
 
     // If locked, maintain state and do NOT reset or release buttons
     if (_isLocked) {
@@ -163,24 +209,19 @@ class _VirtualJoystickWidgetState extends State<VirtualJoystickWidget> {
 
     triggerFeedback(widget.control.feedback, false);
 
-    // Release any over-push buttons
-    if (_wasOverPushed) {
-      final stickId = widget.control.stickType;
-      final buttonId = stickId == 'right' ? 'R3' : 'L3';
-      widget.onInputEvent(GamepadButtonInputEvent.up(buttonId));
-      _wasOverPushed = false;
+    if (_isStickClickDown) {
+      _emitStickClick(false);
     }
 
-    _wasAtEdge = false;
     _currentMagnitude = 0.0;
+    _showStickClickHint = false;
 
     final useGamepad = widget.control.mode == 'gamepad';
 
     if (useGamepad) {
       // Use explicit stickType
       final stickId = widget.control.stickType;
-      widget
-          .onInputEvent(GamepadAxisInputEvent(axisId: stickId, x: 0.0, y: 0.0));
+      _emitAxis(stickId: stickId, x: 0.0, y: 0.0);
     } else {
       for (final key in _activeKeys) {
         widget.onInputEvent(KeyboardInputEvent.up(key));
@@ -193,16 +234,22 @@ class _VirtualJoystickWidgetState extends State<VirtualJoystickWidget> {
 
   void _updateStick(Offset localPosition) {
     final useGamepad = widget.control.mode == 'gamepad';
+    final stickClickEnabled =
+        widget.control.config['stickClickEnabled'] == true;
+    final stickLockEnabled =
+        widget.control.config['stickLockEnabled'] == true;
 
     final size = context.size;
     if (size == null) return;
 
     final center = Offset(size.width / 2, size.height / 2);
     final maxRadius = size.width / 2 - 12;
-    final overPushThreshold =
-        maxRadius + (maxRadius * 0.12).clamp(8.0, 14.0).toDouble();
     // Threshold for Lock (Level 3)
     final lockThreshold = maxRadius * 2.0;
+
+    final stickClickHintDistance = (maxRadius * 0.22).clamp(12.0, 20.0);
+    const stickClickHintHitRadius = 14.0;
+    final stickClickCancelRadius = maxRadius * 0.88;
 
     var delta = localPosition - center;
     final distance = delta.distance;
@@ -212,69 +259,83 @@ class _VirtualJoystickWidgetState extends State<VirtualJoystickWidget> {
     _currentAngle = angle;
     _currentMagnitude = (distance / maxRadius).clamp(0.0, 1.0);
 
-    // Haptic Logic & State Machine
-    if (distance >= lockThreshold) {
-      if (!_isLocked && _lockTimer == null) {
-        // Start timer for lock
-        _lockTimer = Timer(const Duration(seconds: 1), () {
-          if (mounted) {
+    // Haptic Logic & State Machine (Lock)
+    if (useGamepad && stickLockEnabled) {
+      if (distance >= lockThreshold) {
+        if (!_isLocked && _lockTimer == null) {
+          _lockTimer = Timer(const Duration(seconds: 1), () {
+            if (!mounted) return;
             setState(() => _isLocked = true);
+            if (stickClickEnabled && !_isStickClickDown) {
+              _emitStickClick(true);
+            }
             triggerFeedback(widget.control.feedback, true, type: 'success');
+          });
+        }
+      } else {
+        if (_lockTimer != null) {
+          _lockTimer?.cancel();
+          _lockTimer = null;
+        }
+
+        if (_isLocked && distance < maxRadius) {
+          setState(() => _isLocked = false);
+          if (_isStickClickDown) {
+            _emitStickClick(false);
           }
-        });
+          triggerFeedback(widget.control.feedback, true, type: 'light');
+        }
       }
     } else {
-      // Cancel timer if user moves back before lock triggers
       if (_lockTimer != null) {
         _lockTimer?.cancel();
         _lockTimer = null;
       }
-
-      if (_isLocked && distance < maxRadius) {
-        // Unlock if dragged back close to center without releasing
+      if (_isLocked) {
         setState(() => _isLocked = false);
-        triggerFeedback(widget.control.feedback, true, type: 'light');
       }
     }
 
-    if (distance >= maxRadius) {
-      if (!_wasAtEdge) {
-        triggerFeedback(widget.control.feedback, true, type: 'medium');
-        _wasAtEdge = true;
+    if (useGamepad && !_isLocked && stickClickEnabled) {
+      if (distance >= maxRadius) {
+        final unit = distance == 0 ? Offset.zero : delta / distance;
+        final hintOffset = unit * (maxRadius + stickClickHintDistance);
+        final hintCenter = center + hintOffset;
+        final overHint =
+            (localPosition - hintCenter).distance <= stickClickHintHitRadius;
+        final showHint = !_isStickClickDown;
+
+        if (_showStickClickHint != showHint ||
+            (showHint && _stickClickHintOffset != hintOffset)) {
+          setState(() {
+            _showStickClickHint = showHint;
+            _stickClickHintOffset = hintOffset;
+          });
+        }
+
+        if (!_isStickClickDown && overHint) {
+          triggerFeedback(widget.control.feedback, true, type: 'heavy');
+          _emitStickClick(true);
+        }
+      } else {
+        if (_showStickClickHint) {
+          setState(() {
+            _showStickClickHint = false;
+          });
+        }
+      }
+
+      if (_isStickClickDown && distance <= stickClickCancelRadius) {
+        _emitStickClick(false);
       }
     } else {
-      _wasAtEdge = false;
-    }
-
-    // Over-push / Level 2 Logic with Delay
-    if (distance >= overPushThreshold) {
-      if (!_wasOverPushed && _overPushTimer == null) {
-        // Start 0.5s timer for over-push
-        _overPushTimer = Timer(const Duration(milliseconds: 500), () {
-          if (mounted && !_wasOverPushed) {
-            triggerFeedback(widget.control.feedback, true, type: 'heavy');
-            if (useGamepad) {
-              final stickId = widget.control.stickType;
-              final buttonId = stickId == 'right' ? 'R3' : 'L3';
-              widget.onInputEvent(GamepadButtonInputEvent.down(buttonId));
-            }
-            _wasOverPushed = true;
-          }
+      if (_showStickClickHint) {
+        setState(() {
+          _showStickClickHint = false;
         });
       }
-    } else {
-      // Cancel over-push timer if user moves back
-      _overPushTimer?.cancel();
-      _overPushTimer = null;
-
-      if (_wasOverPushed) {
-        // Released from over-push region
-        if (useGamepad) {
-          final stickId = widget.control.stickType;
-          final buttonId = stickId == 'right' ? 'R3' : 'L3';
-          widget.onInputEvent(GamepadButtonInputEvent.up(buttonId));
-        }
-        _wasOverPushed = false;
+      if (_isStickClickDown) {
+        _emitStickClick(false);
       }
     }
 
@@ -283,7 +344,10 @@ class _VirtualJoystickWidgetState extends State<VirtualJoystickWidget> {
       delta = delta / distance * maxRadius;
     }
 
-    setState(() => _stickPosition = delta);
+    final nextStickPosition = delta;
+    if ((_stickPosition - nextStickPosition).distanceSquared > 0.25) {
+      setState(() => _stickPosition = nextStickPosition);
+    }
 
     final dx = delta.dx / maxRadius;
     final dy = delta.dy / maxRadius;
@@ -291,7 +355,7 @@ class _VirtualJoystickWidgetState extends State<VirtualJoystickWidget> {
     if (useGamepad) {
       // Use explicit stickType
       final stickId = widget.control.stickType;
-      widget.onInputEvent(GamepadAxisInputEvent(axisId: stickId, x: dx, y: dy));
+      _emitAxis(stickId: stickId, x: dx, y: dy);
       return;
     }
 
@@ -311,6 +375,43 @@ class _VirtualJoystickWidgetState extends State<VirtualJoystickWidget> {
       widget.onInputEvent(KeyboardInputEvent.down(key));
     }
     _activeKeys = newActiveKeys;
+  }
+
+  void _emitAxis({
+    required String stickId,
+    required double x,
+    required double y,
+  }) {
+    final nowUs = DateTime.now().microsecondsSinceEpoch;
+    const minIntervalUs = 8000;
+    const epsilon = 0.002;
+
+    final dx = (x - _lastAxisX).abs();
+    final dy = (y - _lastAxisY).abs();
+    final changed = dx > epsilon || dy > epsilon;
+    final due = (nowUs - _lastAxisSentUs) >= minIntervalUs;
+
+    if (!changed && !due) return;
+
+    _lastAxisX = x;
+    _lastAxisY = y;
+    _lastAxisSentUs = nowUs;
+    widget.onInputEvent(GamepadAxisInputEvent(axisId: stickId, x: x, y: y));
+  }
+
+  void _emitStickClick(bool down) {
+    if (widget.control.mode != 'gamepad') return;
+    if (_isStickClickDown == down) return;
+    setState(() {
+      _isStickClickDown = down;
+      if (down) {
+        _showStickClickHint = false;
+      }
+    });
+    final stickId = widget.control.stickType;
+    final buttonId = stickId == 'right' ? 'r3' : 'l3';
+    widget.onInputEvent(
+        down ? GamepadButtonInputEvent.down(buttonId) : GamepadButtonInputEvent.up(buttonId));
   }
 }
 

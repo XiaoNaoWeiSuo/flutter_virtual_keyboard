@@ -166,6 +166,8 @@ class EditorControlFactory {
       config: const {
         'centerLabel': 'L',
         'overlayStyle': 'center',
+        'stickClickEnabled': false,
+        'stickLockEnabled': false,
       },
     );
   }
@@ -184,6 +186,8 @@ class EditorControlFactory {
       config: const {
         'centerLabel': 'R',
         'overlayStyle': 'center',
+        'stickClickEnabled': false,
+        'stickLockEnabled': false,
       },
     );
   }
@@ -208,7 +212,7 @@ class EditorControlFactory {
       layout: layout ??
           const ControlLayout(x: 0.12, y: 0.6, width: 0.20, height: 0.20),
       trigger: TriggerType.hold,
-      enable3D: true,
+      enable3D: false,
       directions: const {
         DpadDirection.up: GamepadButtonBinding(GamepadButtonId.dpadUp),
         DpadDirection.down: GamepadButtonBinding(GamepadButtonId.dpadDown),

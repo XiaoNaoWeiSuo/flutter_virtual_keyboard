@@ -37,6 +37,36 @@ class VirtualControllerLayoutEditorController extends ChangeNotifier {
   VirtualControllerState get state => _state;
   VirtualControl? get selectedControl => _selected;
   double get selectedScale => _selectedScale;
+  bool get selectedStickClickEnabled {
+    final selected = _selected;
+    if (selected is! VirtualJoystick) return false;
+    if (selected.mode != 'gamepad') return false;
+    final v = _state.stateFor(selected.id)?.config['stickClickEnabled'];
+    return v == true;
+  }
+
+  bool get selectedStickLockEnabled {
+    final selected = _selected;
+    if (selected is! VirtualJoystick) return false;
+    if (selected.mode != 'gamepad') return false;
+    final v = _state.stateFor(selected.id)?.config['stickLockEnabled'];
+    return v == true;
+  }
+
+  bool get selectedDpad3dEnabled {
+    final selected = _selected;
+    if (selected is! VirtualDpad) return false;
+    final v = _state.stateFor(selected.id)?.config['enable3D'];
+    if (v is bool) return v;
+    return selected.enable3D;
+  }
+  bool get canDeleteSelected {
+    if (readOnly || !allowAddRemove) return false;
+    final selected = _selected;
+    if (selected == null) return false;
+    if (_definitionIds.contains(selected.id)) return false;
+    return true;
+  }
   double get selectedOpacity {
     final id = _selected?.id;
     if (id == null) return 1.0;
@@ -62,6 +92,12 @@ class VirtualControllerLayoutEditorController extends ChangeNotifier {
 
   void renameLayout(String name) {
     if (readOnly || !allowRename) return;
+    final next = name.trim();
+    if (next.isEmpty) return;
+    _state = _state.copyWith(name: next);
+    _layout = _applyState(_definition, _state);
+    _isDirty = true;
+    notifyListeners();
   }
 
   void selectControl(VirtualControl? control) {
@@ -74,8 +110,14 @@ class VirtualControllerLayoutEditorController extends ChangeNotifier {
   void addControl(VirtualControl control) {
     if (readOnly || !allowAddRemove) return;
     if (_definitionIds.contains(control.id)) return;
+    final config = _extractStateConfig(control);
     _state = _state.upsert(
-      VirtualControlState(id: control.id, layout: control.layout, opacity: 1.0),
+      VirtualControlState(
+        id: control.id,
+        layout: control.layout,
+        opacity: 1.0,
+        config: config,
+      ),
     );
     _layout = _applyState(_definition, _state);
     _isDirty = true;
@@ -101,11 +143,21 @@ class VirtualControllerLayoutEditorController extends ChangeNotifier {
     final opacityRaw = updated.config['opacity'];
     final opacity = (opacityRaw is num ? opacityRaw.toDouble() : null) ??
         (_state.stateFor(updated.id)?.opacity ?? 1.0);
+    final prevConfig = _state.stateFor(updated.id)?.config ?? const {};
+    final nextConfig = Map<String, dynamic>.from(prevConfig);
+    final stickClickEnabled = updated.config['stickClickEnabled'];
+    if (stickClickEnabled is bool) {
+      nextConfig['stickClickEnabled'] = stickClickEnabled;
+    }
+    if (updated is VirtualDpad) {
+      nextConfig['enable3D'] = updated.enable3D;
+    }
     _state = _state.upsert(
       VirtualControlState(
         id: updated.id,
         layout: updated.layout,
         opacity: opacity.clamp(0.0, 1.0),
+        config: nextConfig,
       ),
     );
     _layout = _applyState(_definition, _state);
@@ -236,11 +288,78 @@ class VirtualControllerLayoutEditorController extends ChangeNotifier {
     final selected = _selected;
     if (selected == null) return;
     final nextOpacity = opacity.clamp(0.05, 1.0);
+    final prevConfig = _state.stateFor(selected.id)?.config ?? const {};
     _state = _state.upsert(
       VirtualControlState(
         id: selected.id,
         layout: selected.layout,
         opacity: nextOpacity,
+        config: prevConfig,
+      ),
+    );
+    _layout = _applyState(_definition, _state);
+    _isDirty = true;
+    notifyListeners();
+  }
+
+  void setSelectedStickClickEnabled(bool enabled) {
+    if (readOnly) return;
+    final selected = _selected;
+    if (selected is! VirtualJoystick) return;
+    if (selected.mode != 'gamepad') return;
+    final prev = _state.stateFor(selected.id);
+    final prevConfig = prev?.config ?? const {};
+    final nextConfig = Map<String, dynamic>.from(prevConfig);
+    nextConfig['stickClickEnabled'] = enabled;
+    _state = _state.upsert(
+      VirtualControlState(
+        id: selected.id,
+        layout: prev?.layout ?? selected.layout,
+        opacity: prev?.opacity ?? 1.0,
+        config: nextConfig,
+      ),
+    );
+    _layout = _applyState(_definition, _state);
+    _isDirty = true;
+    notifyListeners();
+  }
+
+  void setSelectedStickLockEnabled(bool enabled) {
+    if (readOnly) return;
+    final selected = _selected;
+    if (selected is! VirtualJoystick) return;
+    if (selected.mode != 'gamepad') return;
+    final prev = _state.stateFor(selected.id);
+    final prevConfig = prev?.config ?? const {};
+    final nextConfig = Map<String, dynamic>.from(prevConfig);
+    nextConfig['stickLockEnabled'] = enabled;
+    _state = _state.upsert(
+      VirtualControlState(
+        id: selected.id,
+        layout: prev?.layout ?? selected.layout,
+        opacity: prev?.opacity ?? 1.0,
+        config: nextConfig,
+      ),
+    );
+    _layout = _applyState(_definition, _state);
+    _isDirty = true;
+    notifyListeners();
+  }
+
+  void setSelectedDpad3dEnabled(bool enabled) {
+    if (readOnly) return;
+    final selected = _selected;
+    if (selected is! VirtualDpad) return;
+    final prev = _state.stateFor(selected.id);
+    final prevConfig = prev?.config ?? const {};
+    final nextConfig = Map<String, dynamic>.from(prevConfig);
+    nextConfig['enable3D'] = enabled;
+    _state = _state.upsert(
+      VirtualControlState(
+        id: selected.id,
+        layout: prev?.layout ?? selected.layout,
+        opacity: prev?.opacity ?? 1.0,
+        config: nextConfig,
       ),
     );
     _layout = _applyState(_definition, _state);
@@ -392,6 +511,8 @@ class VirtualControllerLayoutEditorController extends ChangeNotifier {
       );
     }
     if (control is VirtualDpad) {
+      final enable3D =
+          (nextConfig['enable3D'] is bool) ? nextConfig['enable3D'] as bool : control.enable3D;
       return VirtualDpad(
         id: control.id,
         label: nextLabel,
@@ -400,7 +521,7 @@ class VirtualControllerLayoutEditorController extends ChangeNotifier {
         config: nextConfig,
         actions: control.actions,
         directions: control.directions,
-        enable3D: control.enable3D,
+        enable3D: enable3D,
         style: style ?? control.style,
         feedback: control.feedback,
       );
@@ -463,6 +584,9 @@ VirtualControllerLayout _applyState(
       continue;
     }
     final nextConfig = Map<String, dynamic>.from(c.config);
+    if (s.config.isNotEmpty) {
+      nextConfig.addAll(s.config);
+    }
     nextConfig['opacity'] = s.opacity;
     controls.add(
       _cloneControlWithOverrides(c, layout: s.layout, config: nextConfig),
@@ -474,6 +598,9 @@ VirtualControllerLayout _applyState(
     final dynControl = _dynamicControlFromId(s.id, s.layout);
     if (dynControl == null) continue;
     final nextConfig = Map<String, dynamic>.from(dynControl.config);
+    if (s.config.isNotEmpty) {
+      nextConfig.addAll(s.config);
+    }
     nextConfig['opacity'] = s.opacity;
     controls.add(
       _cloneControlWithOverrides(dynControl,
@@ -482,9 +609,26 @@ VirtualControllerLayout _applyState(
   }
   return VirtualControllerLayout(
     schemaVersion: definition.schemaVersion,
-    name: definition.name,
+    name: (state.name?.trim().isNotEmpty ?? false)
+        ? state.name!.trim()
+        : definition.name,
     controls: controls,
   );
+}
+
+Map<String, dynamic> _extractStateConfig(VirtualControl control) {
+  if (control is VirtualJoystick) {
+    final enabled = control.config['stickClickEnabled'];
+    final lockEnabled = control.config['stickLockEnabled'];
+    return {
+      'stickClickEnabled': enabled is bool ? enabled : false,
+      'stickLockEnabled': lockEnabled is bool ? lockEnabled : false,
+    };
+  }
+  if (control is VirtualDpad) {
+    return {'enable3D': control.enable3D};
+  }
+  return const {};
 }
 
 VirtualControl? _dynamicControlFromId(String id, ControlLayout layout) {
@@ -555,7 +699,7 @@ VirtualControl? _dynamicControlFromId(String id, ControlLayout layout) {
       label: '',
       layout: layout,
       trigger: TriggerType.hold,
-      enable3D: true,
+      enable3D: false,
       directions: const {
         DpadDirection.up: GamepadButtonBinding(GamepadButtonId.dpadUp),
         DpadDirection.down: GamepadButtonBinding(GamepadButtonId.dpadDown),
@@ -760,6 +904,8 @@ VirtualControl _cloneControlWithOverrides(
     );
   }
   if (control is VirtualDpad) {
+    final enable3D =
+        (nextConfig['enable3D'] is bool) ? nextConfig['enable3D'] as bool : control.enable3D;
     return VirtualDpad(
       id: control.id,
       label: nextLabel,
@@ -768,7 +914,7 @@ VirtualControl _cloneControlWithOverrides(
       config: nextConfig,
       actions: control.actions,
       directions: control.directions,
-      enable3D: control.enable3D,
+      enable3D: enable3D,
       style: style ?? control.style,
       feedback: control.feedback,
     );

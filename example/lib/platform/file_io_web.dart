@@ -6,8 +6,7 @@ Future<void> downloadTextFile(
   String content, {
   String mimeType = 'application/json',
 }) async {
-  final bytes = content.codeUnits;
-  final blob = html.Blob([bytes], mimeType);
+  final blob = html.Blob([content], mimeType);
   final url = html.Url.createObjectUrlFromBlob(blob);
   final a = html.AnchorElement(href: url)
     ..download = filename

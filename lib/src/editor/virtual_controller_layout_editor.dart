@@ -35,6 +35,7 @@ class VirtualControllerLayoutEditor extends StatefulWidget {
     this.allowAddRemove = false,
     this.allowResize = true,
     this.allowMove = true,
+    this.allowRename = true,
     this.enabledPaletteTabs = const {
       VirtualControllerEditorPaletteTab.keyboard,
       VirtualControllerEditorPaletteTab.mouseAndJoystick,
@@ -77,6 +78,9 @@ class VirtualControllerLayoutEditor extends StatefulWidget {
 
   /// Whether moving controls is allowed.
   final bool allowMove;
+
+  /// Whether renaming the layout is allowed.
+  final bool allowRename;
 
   /// The set of tabs to show in the control palette.
   final Set<VirtualControllerEditorPaletteTab> enabledPaletteTabs;
@@ -126,6 +130,7 @@ class _VirtualControllerLayoutEditorState
         allowAddRemove: widget.allowAddRemove,
         allowResize: widget.allowResize,
         allowMove: widget.allowMove,
+        allowRename: widget.allowRename,
       );
       setState(() {
         _controller = c;
@@ -142,6 +147,8 @@ class _VirtualControllerLayoutEditorState
   Future<void> _save() async {
     final c = _controller;
     if (c == null) return;
+    final named = await _ensureLayoutNamed();
+    if (!named) return;
     try {
       await widget.saveState(widget.layoutId, c.state);
       c.markSaved();
@@ -155,6 +162,198 @@ class _VirtualControllerLayoutEditorState
         SnackBar(content: Text('保存失败: $e')),
       );
     }
+  }
+
+  bool _isPlaceholderName(String name) {
+    final n = name.trim();
+    if (n.isEmpty) return true;
+    final lower = n.toLowerCase();
+    return lower == 'untitled' || lower == 'unnamed' || n == '未命名';
+  }
+
+  Future<bool> _ensureLayoutNamed() async {
+    final c = _controller;
+    if (c == null) return false;
+    if (widget.readOnly || !widget.allowRename) return true;
+
+    final current = c.layout.name;
+    if (!_isPlaceholderName(current)) return true;
+
+    final next = await _showNameBubble(
+      title: '命名布局',
+      initialValue: c.state.name ?? '',
+      hintText: '请输入布局名称',
+    );
+    if (next == null) return false;
+    c.replaceState(c.state.copyWith(name: next.trim()), markDirty: true);
+    return true;
+  }
+
+  Future<void> _renameLayout() async {
+    final c = _controller;
+    if (c == null) return;
+    if (widget.readOnly || !widget.allowRename) return;
+    final next = await _showNameBubble(
+      title: '重命名布局',
+      initialValue: c.layout.name,
+      hintText: '请输入布局名称',
+    );
+    if (next == null) return;
+    c.replaceState(c.state.copyWith(name: next.trim()), markDirty: true);
+  }
+
+  Future<String?> _showNameBubble({
+    required String title,
+    required String initialValue,
+    required String hintText,
+  }) async {
+    final textController = TextEditingController(text: initialValue);
+    final focusNode = FocusNode();
+
+    String? result;
+    await showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'name',
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 160),
+      pageBuilder: (context, animation, secondaryAnimation) {
+        final size = MediaQuery.of(context).size;
+        return SafeArea(
+          child: Material(
+            type: MaterialType.transparency,
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: MediaQuery.removeViewInsets(
+                context: context,
+                removeBottom: true,
+                child: Padding(
+                  padding: const EdgeInsets.only(
+                    // top: 20,
+                    left: 12,
+                    right: 12,
+                  ),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 520),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1C1C1E).withValues(alpha: 0.96),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.10),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.35),
+                            blurRadius: 18,
+                            offset: const Offset(0, 10),
+                          ),
+                        ],
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Text(
+                              title,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            // const SizedBox(height: 10),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: TextField(
+                                    controller: textController,
+                                    focusNode: focusNode,
+                                    autofocus: true,
+                                    textInputAction: TextInputAction.done,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 14,
+                                    ),
+                                    decoration: InputDecoration(
+                                      isDense: true,
+                                      hintText: hintText,
+                                      hintStyle: TextStyle(
+                                        color: Colors.white
+                                            .withValues(alpha: 0.35),
+                                      ),
+                                      filled: true,
+                                      fillColor:
+                                          Colors.white.withValues(alpha: 0.06),
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 10,
+                                      ),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(14),
+                                        borderSide: BorderSide.none,
+                                      ),
+                                    ),
+                                    onSubmitted: (v) {
+                                      final next = v.trim();
+                                      if (next.isEmpty) return;
+                                      result = next;
+                                      Navigator.of(context).pop();
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                IconButton(
+                                  onPressed: () => Navigator.of(context).pop(),
+                                  icon: const Icon(Icons.close,
+                                      color: Colors.white70, size: 18),
+                                  tooltip: '取消',
+                                ),
+                                IconButton(
+                                  onPressed: () {
+                                    final next = textController.text.trim();
+                                    if (next.isEmpty) return;
+                                    result = next;
+                                    Navigator.of(context).pop();
+                                  },
+                                  icon: const Icon(Icons.done,
+                                      color: Colors.lightBlueAccent, size: 18),
+                                  tooltip: '确定',
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        final curved = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutCubic,
+        );
+        return FadeTransition(
+          opacity: curved,
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.98, end: 1.0).animate(curved),
+            child: child,
+          ),
+        );
+      },
+    );
+
+    focusNode.dispose();
+    textController.dispose();
+    return result;
   }
 
   Future<void> _confirmReset() async {
@@ -282,9 +481,53 @@ class _VirtualControllerLayoutEditorState
                                     allowResize: widget.allowResize,
                                     enabledTabs: widget.enabledPaletteTabs,
                                     hasSelection: c.selectedControl != null,
+                                    showStickClickToggle: c.selectedControl
+                                            is VirtualJoystick &&
+                                        (c.selectedControl as VirtualJoystick)
+                                                .mode ==
+                                            'gamepad',
+                                    stickClickLabel:
+                                        c.selectedControl is VirtualJoystick
+                                            ? (((c.selectedControl
+                                                            as VirtualJoystick)
+                                                        .stickType ==
+                                                    'left')
+                                                ? 'LS重按'
+                                                : 'RS重按')
+                                            : '重按',
+                                    stickClickEnabled:
+                                        c.selectedStickClickEnabled,
+                                    onStickClickChanged:
+                                        c.setSelectedStickClickEnabled,
+                                    showStickLockToggle: c.selectedControl
+                                            is VirtualJoystick &&
+                                        (c.selectedControl as VirtualJoystick)
+                                                .mode ==
+                                            'gamepad',
+                                    stickLockLabel:
+                                        c.selectedControl is VirtualJoystick
+                                            ? (((c.selectedControl
+                                                            as VirtualJoystick)
+                                                        .stickType ==
+                                                    'left')
+                                                ? 'LS锁定'
+                                                : 'RS锁定')
+                                            : '锁定',
+                                    stickLockEnabled:
+                                        c.selectedStickLockEnabled,
+                                    onStickLockChanged:
+                                        c.setSelectedStickLockEnabled,
+                                    showDpad3dToggle:
+                                        c.selectedControl is VirtualDpad,
+                                    dpad3dEnabled: c.selectedDpad3dEnabled,
+                                    onDpad3dChanged: c.setSelectedDpad3dEnabled,
+                                    canRemove: c.canDeleteSelected,
                                     canSave: c.isDirty && !widget.readOnly,
+                                    canRename:
+                                        widget.allowRename && !widget.readOnly,
                                     sizeValue: c.selectedScale,
                                     opacityValue: c.selectedOpacity,
+                                    onRename: _renameLayout,
                                     onClose: () {
                                       widget.onClose?.call();
                                       Navigator.of(context).maybePop();
@@ -305,6 +548,7 @@ class _VirtualControllerLayoutEditorState
                                     onOpenPs: () => _openPaletteFor(
                                         VirtualControllerEditorPaletteTab.ps),
                                     onReset: _confirmReset,
+                                    onRemove: c.deleteSelected,
                                     onSizeChanged: (v) =>
                                         c.setSelectedScale(v, _lastCanvasSize),
                                     onOpacityChanged: c.setSelectedOpacity,
@@ -329,9 +573,23 @@ class _DockPanel extends StatelessWidget {
     required this.allowResize,
     required this.enabledTabs,
     required this.hasSelection,
+    required this.showStickClickToggle,
+    required this.stickClickLabel,
+    required this.stickClickEnabled,
+    required this.onStickClickChanged,
+    required this.showStickLockToggle,
+    required this.stickLockLabel,
+    required this.stickLockEnabled,
+    required this.onStickLockChanged,
+    required this.showDpad3dToggle,
+    required this.dpad3dEnabled,
+    required this.onDpad3dChanged,
+    required this.canRemove,
     required this.canSave,
+    required this.canRename,
     required this.sizeValue,
     required this.opacityValue,
+    required this.onRename,
     required this.onClose,
     required this.onSave,
     required this.onToggleCollapsed,
@@ -341,6 +599,7 @@ class _DockPanel extends StatelessWidget {
     required this.onOpenXbox,
     required this.onOpenPs,
     required this.onReset,
+    required this.onRemove,
     required this.onSizeChanged,
     required this.onOpacityChanged,
     required this.collapsed,
@@ -352,10 +611,24 @@ class _DockPanel extends StatelessWidget {
   final bool allowResize;
   final Set<VirtualControllerEditorPaletteTab> enabledTabs;
   final bool hasSelection;
+  final bool showStickClickToggle;
+  final String stickClickLabel;
+  final bool stickClickEnabled;
+  final ValueChanged<bool> onStickClickChanged;
+  final bool showStickLockToggle;
+  final String stickLockLabel;
+  final bool stickLockEnabled;
+  final ValueChanged<bool> onStickLockChanged;
+  final bool showDpad3dToggle;
+  final bool dpad3dEnabled;
+  final ValueChanged<bool> onDpad3dChanged;
+  final bool canRemove;
   final bool canSave;
+  final bool canRename;
   final double sizeValue;
   final double opacityValue;
 
+  final VoidCallback onRename;
   final VoidCallback onClose;
   final VoidCallback onSave;
   final VoidCallback onToggleCollapsed;
@@ -365,6 +638,7 @@ class _DockPanel extends StatelessWidget {
   final VoidCallback onOpenXbox;
   final VoidCallback onOpenPs;
   final VoidCallback onReset;
+  final VoidCallback onRemove;
   final ValueChanged<double> onSizeChanged;
   final ValueChanged<double> onOpacityChanged;
   final bool collapsed;
@@ -379,7 +653,7 @@ class _DockPanel extends StatelessWidget {
       );
     }
     return ConstrainedBox(
-      constraints: BoxConstraints(maxWidth: hasSelection ? 380 : 280),
+      constraints: BoxConstraints(maxWidth: hasSelection ? 400 : 280),
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: const Color(0xFF1C1C1E).withValues(alpha: 0.88),
@@ -410,15 +684,20 @@ class _DockPanel extends StatelessWidget {
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 6, vertical: 8),
-                      child: Text(
-                        title,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
+                      child: GestureDetector(
+                        onTap: canRename ? onRename : null,
+                        child: Text(
+                          title,
+                          style: TextStyle(
+                            color: canRename
+                                ? Colors.white
+                                : Colors.white.withValues(alpha: 0.60),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ),
@@ -442,6 +721,23 @@ class _DockPanel extends StatelessWidget {
                           color: Colors.amberAccent, size: 18),
                       tooltip: '重置',
                     ),
+                    if (allowAddRemove && !readOnly)
+                      IconButton(
+                        onPressed: () {
+                          if (canRemove) {
+                            onRemove();
+                            return;
+                          }
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('默认控件不可删除')),
+                          );
+                        },
+                        icon: Icon(Icons.delete_outline,
+                            color:
+                                canRemove ? Colors.redAccent : Colors.white24,
+                            size: 18),
+                        tooltip: canRemove ? '删除' : '默认控件不可删除',
+                      ),
                   ],
                 ],
               ),
@@ -495,10 +791,87 @@ class _DockPanel extends StatelessWidget {
                   ],
                 ),
               ],
+              Row(
+                children: [
+                  if (hasSelection && !readOnly && showStickClickToggle)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
+                      child: _RadioToggle(
+                        label: stickClickLabel,
+                        value: stickClickEnabled,
+                        onChanged: onStickClickChanged,
+                      ),
+                    ),
+                  if (hasSelection && !readOnly && showStickLockToggle)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
+                      child: _RadioToggle(
+                        label: stickLockLabel,
+                        value: stickLockEnabled,
+                        onChanged: onStickLockChanged,
+                      ),
+                    ),
+                ],
+              ),
+              if (hasSelection && !readOnly && showDpad3dToggle)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
+                  child: _RadioToggle(
+                    label: '3D模式',
+                    value: dpad3dEnabled,
+                    onChanged: onDpad3dChanged,
+                  ),
+                ),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+class _RadioToggle extends StatelessWidget {
+  const _RadioToggle({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String label;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    const activeColor = Colors.lightBlueAccent;
+    final inactiveColor = Colors.white.withValues(alpha: 0.65);
+    final selected = value;
+
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(color: Colors.white70, fontSize: 12),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        InkWell(
+          onTap: () => onChanged(!value),
+          borderRadius: BorderRadius.circular(10),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            child: Icon(
+              selected
+                  ? Icons.radio_button_checked
+                  : Icons.radio_button_unchecked,
+              size: 16,
+              color: selected ? activeColor : inactiveColor,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

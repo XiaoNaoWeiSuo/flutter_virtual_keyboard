@@ -34,10 +34,10 @@ class ControlLayout {
 
   /// Converts the layout to a JSON map.
   Map<String, dynamic> toJson() => {
-        'x': x,
-        'y': y,
-        'width': width,
-        'height': height,
+        'x': double.parse(x.toStringAsFixed(6)),
+        'y': double.parse(y.toStringAsFixed(6)),
+        'width': double.parse(width.toStringAsFixed(6)),
+        'height': double.parse(height.toStringAsFixed(6)),
       };
 
   /// Convert normalized layout to actual screen rect.

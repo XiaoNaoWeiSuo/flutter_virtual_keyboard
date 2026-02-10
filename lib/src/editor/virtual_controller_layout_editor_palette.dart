@@ -328,8 +328,8 @@ class _GamepadPalette extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final row1 = isPs
-        ? const ['L1', 'L2', 'Share', 'Options', 'R1', 'R2']
-        : const ['LB', 'LT', 'Back', 'Start', 'RB', 'RT'];
+        ? const ['L1', 'L2', 'L3', 'Share', 'Options', 'R3', 'R1', 'R2']
+        : const ['LB', 'LT', 'L3', 'Back', 'Start', 'R3', 'RB', 'RT'];
 
     final row2 = isPs ? const ['Triangle', 'Circle'] : const ['Y', 'B'];
     final row3 = isPs ? const ['Square', 'Cross'] : const ['X', 'A'];
@@ -621,7 +621,7 @@ List<VirtualControl> _prototypesFor(VirtualControllerEditorPaletteTab tab) {
           label: '',
           layout: dummy,
           trigger: TriggerType.hold,
-          enable3D: true,
+          enable3D: false,
           directions: const {
             DpadDirection.up: GamepadButtonBinding(GamepadButtonId.dpadUp),
             DpadDirection.down: GamepadButtonBinding(GamepadButtonId.dpadDown),
@@ -641,7 +641,9 @@ List<VirtualControl> _prototypesFor(VirtualControllerEditorPaletteTab tab) {
       final shoulders = isPs
           ? const ['L1', 'R1', 'L2', 'R2']
           : const ['LB', 'RB', 'LT', 'RT'];
-      final sys = isPs ? const ['Options', 'Share'] : const ['Start', 'Back'];
+      final sys = isPs
+          ? const ['Options', 'Share', 'L3', 'R3']
+          : const ['Start', 'Back', 'L3', 'R3'];
       final customButtons = InputBindingRegistry.registeredGamepadButtons
           .where((b) => !GamepadButtonId.builtIns.contains(b))
           .toList();
