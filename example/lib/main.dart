@@ -19,7 +19,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Virtual Gamepad Pro (Web Demo)',
+      title: '布局编辑器',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.light,

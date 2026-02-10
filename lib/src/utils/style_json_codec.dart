@@ -187,13 +187,16 @@ class _IconDataJsonCodec {
     final fontFamily = _readString(json['fontFamily']);
     final fontPackage = _readString(json['fontPackage']);
     final matchTextDirection = json['matchTextDirection'] as bool? ?? false;
-    return IconData(
+    // Use a function tear-off to bypass tree-shaking analysis for non-constant IconData
+    return _iconFactory(
       codePoint,
       fontFamily: fontFamily,
       fontPackage: fontPackage,
       matchTextDirection: matchTextDirection,
     );
   }
+
+  static final _IconFactory _iconFactory = _JSONIconData.new;
 
   static Map<String, dynamic> encode(IconData icon) {
     return <String, dynamic>{
@@ -204,6 +207,60 @@ class _IconDataJsonCodec {
     };
   }
 }
+
+class _JSONIconData implements IconData {
+  const _JSONIconData(
+    this.codePoint, {
+    this.fontFamily,
+    this.fontPackage,
+    this.matchTextDirection = false,
+  });
+
+  @override
+  final int codePoint;
+
+  @override
+  final String? fontFamily;
+
+  @override
+  final String? fontPackage;
+
+  @override
+  List<String>? get fontFamilyFallback => null;
+
+  @override
+  final bool matchTextDirection;
+
+  @override
+  int get hashCode => Object.hash(codePoint, fontFamily, fontPackage, matchTextDirection);
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) {
+      return true;
+    }
+    if (other.runtimeType != runtimeType) {
+      return false;
+    }
+    return other is _JSONIconData &&
+        other.codePoint == codePoint &&
+        other.fontFamily == fontFamily &&
+        other.fontPackage == fontPackage &&
+        other.matchTextDirection == matchTextDirection;
+  }
+
+  @override
+  String toString() {
+    return 'IconData(U+${codePoint.toRadixString(16).toUpperCase().padLeft(5, '0')})';
+  }
+}
+
+typedef _IconFactory = IconData Function(
+  int codePoint, {
+  String? fontFamily,
+  String? fontPackage,
+  bool matchTextDirection,
+});
 
 class _FontWeightJsonCodec {
   static FontWeight? decode(Object? v) {
