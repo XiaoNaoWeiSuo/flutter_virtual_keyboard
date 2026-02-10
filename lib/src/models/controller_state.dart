@@ -59,7 +59,7 @@ class VirtualControllerState {
       controls: controlsJson
           .whereType<Map>()
           .map((c) =>
-              VirtualControlState.fromJson(Map<String, dynamic>.from(c as Map)))
+              VirtualControlState.fromJson(Map<String, dynamic>.from(c)))
           .toList(),
       name: json['name'] as String?,
     );

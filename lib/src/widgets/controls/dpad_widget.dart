@@ -176,14 +176,18 @@ class _VirtualDpadWidgetState extends State<VirtualDpadWidget> {
     // However, to simulate "Cross" feel, we might want to prioritize axes.
     // But standard gamepad D-pads allow rolling.
 
-    if (angleDeg >= -150 && angleDeg <= -30)
+    if (angleDeg >= -150 && angleDeg <= -30) {
       newDirections.add(DpadDirection.up);
-    if (angleDeg >= -60 && angleDeg <= 60)
+    }
+    if (angleDeg >= -60 && angleDeg <= 60) {
       newDirections.add(DpadDirection.right);
-    if (angleDeg >= 30 && angleDeg <= 150)
+    }
+    if (angleDeg >= 30 && angleDeg <= 150) {
       newDirections.add(DpadDirection.down);
-    if (angleDeg >= 120 || angleDeg <= -120)
+    }
+    if (angleDeg >= 120 || angleDeg <= -120) {
       newDirections.add(DpadDirection.left);
+    }
 
     // Filter impossible combinations (Up+Down, Left+Right) - Physics prevents this
     if (newDirections.contains(DpadDirection.up) &&

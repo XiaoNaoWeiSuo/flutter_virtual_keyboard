@@ -218,7 +218,6 @@ class _VirtualControllerLayoutEditorState
       barrierColor: Colors.black54,
       transitionDuration: const Duration(milliseconds: 160),
       pageBuilder: (context, animation, secondaryAnimation) {
-        final size = MediaQuery.of(context).size;
         return SafeArea(
           child: Material(
             type: MaterialType.transparency,
