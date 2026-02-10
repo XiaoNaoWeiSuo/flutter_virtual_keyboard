@@ -196,7 +196,7 @@ class _IconDataJsonCodec {
     );
   }
 
-  static final _IconFactory _iconFactory = _JSONIconData.new;
+  static const _IconFactory _iconFactory = _JSONIconData.new;
 
   static Map<String, dynamic> encode(IconData icon) {
     return <String, dynamic>{
