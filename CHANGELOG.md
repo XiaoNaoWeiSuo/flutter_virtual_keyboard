@@ -1,3 +1,7 @@
+## 0.2.2
+- **Fix**: Resolved `IconData` tree-shaking issue in `style_json_codec.dart` to support optimized web builds (`--tree-shake-icons`).
+- **Optimization**: Improved web compilation compatibility by avoiding non-constant `IconData` invocations.
+
 ## 0.2.1
 - **Fix**: Correctly merge and propagate `config` in `VirtualJoystick` and `VirtualDpad` editors.
 - **Change**: `VirtualDpad` defaults to `enable3D: false` for cleaner flat design.
