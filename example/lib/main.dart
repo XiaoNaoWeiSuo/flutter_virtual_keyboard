@@ -746,10 +746,12 @@ class _Toolbar extends StatelessWidget {
           SizedBox(
             width: 200,
             child: InputDecorator(
+            
               decoration: const InputDecoration(
+                isDense: true,
                 border: InputBorder.none,
                 contentPadding: EdgeInsets.zero,
-                labelText: '画布预设',
+                // labelText: '画布预设',
                 floatingLabelBehavior: FloatingLabelBehavior.always,
               ),
               child: DropdownButtonHideUnderline(
