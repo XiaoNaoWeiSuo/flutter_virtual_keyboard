@@ -6,7 +6,10 @@ library virtual_gamepad_pro;
 
 export 'src/models/input_event.dart';
 export 'src/models/virtual_controller_models.dart';
+export 'src/macro/recorded_timeline_event.dart';
 export 'src/widgets/virtual_controller_overlay.dart';
+export 'src/widgets/system_ui_mode_scope.dart';
+export 'src/widgets/macro/virtual_controller_macro_recording_session.dart';
 
 // Export shared widgets for editor usage
 export 'src/widgets/shared/control_container.dart';
@@ -30,3 +33,4 @@ export 'src/editor/editor_control_factory.dart';
 export 'src/editor/virtual_controller_layout_editor_palette.dart';
 export 'src/editor/virtual_controller_layout_editor_controller.dart';
 export 'src/editor/virtual_controller_layout_editor.dart';
+export 'src/editor/macro/macro_suite_page.dart';

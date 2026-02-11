@@ -1,3 +1,8 @@
+## 0.2.3
+- **Feat**: Add macro recording suite UI (`MacroSuitePage`) and timeline preview widgets.
+- **Feat**: Add macro recording runtime helpers and widgets (recording session + macro button widget).
+- **Change**: Refactor layout editor internals (palette/layout editor split) and update exports.
+
 ## 0.2.2
 - **Fix**: Resolved `IconData` tree-shaking issue in `style_json_codec.dart` to support optimized web builds (`--tree-shake-icons`).
 - **Optimization**: Improved web compilation compatibility by avoiding non-constant `IconData` invocations.

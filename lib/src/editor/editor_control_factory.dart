@@ -237,6 +237,18 @@ class EditorControlFactory {
     );
   }
 
+  static VirtualMacroButton macroButton({ControlLayout? layout}) {
+    return VirtualMacroButton(
+      id: 'macro_${DateTime.now().microsecondsSinceEpoch}',
+      label: 'Macro',
+      layout: layout ??
+          const ControlLayout(x: 0.5, y: 0.5, width: 0.1, height: 0.1),
+      trigger: TriggerType.tap,
+      config: const {},
+      sequence: [],
+    );
+  }
+
   static ControlLayout _keyboardInitialLayoutFor(String label) {
     const base = Size(0.06, 0.09);
     final flex = switch (label) {

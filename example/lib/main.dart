@@ -2,14 +2,13 @@ import 'dart:convert';
 
 import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:virtual_gamepad_pro/virtual_gamepad_pro.dart';
 
 import 'platform/file_io.dart';
 import 'platform/kv_store.dart';
 
 void main() {
-  // InputBindingRegistry.registerGamepadButton(code: 'turbo', label: 'Turbo');
   runApp(const MyApp());
 }
 
@@ -73,10 +72,6 @@ class _LayoutManagerPageState extends State<LayoutManagerPage> {
 
   bool _loading = true;
   String? _selectedId;
-  VirtualControllerState _state = const VirtualControllerState(
-    schemaVersion: 1,
-    controls: [],
-  );
   List<String> _ids = const [];
   Map<String, String> _names = {};
 
@@ -85,6 +80,7 @@ class _LayoutManagerPageState extends State<LayoutManagerPage> {
   double _canvasWidth = 812;
   double _canvasHeight = 375;
   String _selectedPreset = 'iPhone X/11/12/13 (L)';
+  int _stateRevision = 0;
 
   static const _presets = <String, Size>{
     'iPhone 8 (L)': Size(667, 375),
@@ -98,21 +94,50 @@ class _LayoutManagerPageState extends State<LayoutManagerPage> {
     'Custom': Size.zero,
   };
 
-  final VirtualControllerLayout _definition = VirtualControllerLayout.xbox()
-      .withButtonStyle(
-        where: (b) => b.gamepadButtonOrNull == GamepadButtonId.a,
-        style: const ControlStyle(
-          shape: BoxShape.rectangle,
-          borderRadius: 999,
-          borderWidth: 2,
-          borderColor: Color(0x88FFFFFF),
-          color: Color(0x66000000),
-          labelText: 'A',
-          labelIcon: Icons.touch_app,
-          labelIconColor: Color(0xFFFFCC00),
-          labelIconScale: 0.62,
-        ),
-      );
+  final VirtualControllerLayout _definition = VirtualControllerLayout(
+    schemaVersion: 1,
+    name: 'unnamed',
+    controls: [
+      VirtualJoystick(
+        id: 'joy_wasd',
+        label: '',
+        layout: const ControlLayout(x: 0.08, y: 0.55, width: 0.22, height: 0.34),
+        trigger: TriggerType.hold,
+        keys: const [
+          KeyboardKey('W'),
+          KeyboardKey('A'),
+          KeyboardKey('S'),
+          KeyboardKey('D'),
+        ],
+        config: const {
+          'overlayLabels': ['W', 'A', 'S', 'D'],
+          'overlayStyle': 'quadrant',
+        },
+      ),
+      VirtualButton(
+        id: 'btn_a',
+        label: 'A',
+        layout: const ControlLayout(x: 0.78, y: 0.63, width: 0.12, height: 0.12),
+        trigger: TriggerType.hold,
+        binding: const GamepadButtonBinding(GamepadButtonId.a),
+      ),
+      VirtualButton(
+        id: 'btn_b',
+        label: 'B',
+        layout: const ControlLayout(x: 0.88, y: 0.55, width: 0.12, height: 0.12),
+        trigger: TriggerType.hold,
+        binding: const GamepadButtonBinding(GamepadButtonId.b),
+      ),
+      VirtualMacroButton(
+        id: 'macro_combo',
+        label: '连招',
+        layout: const ControlLayout(x: 0.78, y: 0.40, width: 0.22, height: 0.10),
+        trigger: TriggerType.tap,
+        config: const {},
+        sequence: const [],
+      ),
+    ],
+  );
 
   @override
   void initState() {
@@ -124,7 +149,6 @@ class _LayoutManagerPageState extends State<LayoutManagerPage> {
     await _repo.init();
     final ids = await _repo.listIds();
     final selected = await _repo.getSelectedId() ?? ids.first;
-    final state = await _repo.loadState(selected);
     
     // Load all names
     final names = <String, String>{};
@@ -137,19 +161,17 @@ class _LayoutManagerPageState extends State<LayoutManagerPage> {
     setState(() {
       _ids = ids;
       _selectedId = selected;
-      _state = state;
       _names = names;
       _loading = false;
     });
   }
 
   Future<void> _select(String id) async {
-    final nextState = await _repo.loadState(id);
+    await _repo.loadState(id);
     await _repo.setSelectedId(id);
     if (!mounted) return;
     setState(() {
       _selectedId = id;
-      _state = nextState;
     });
   }
 
@@ -389,7 +411,7 @@ class _LayoutManagerPageState extends State<LayoutManagerPage> {
                             width: _canvasWidth,
                             height: _canvasHeight,
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: Colors.blueGrey,
                               borderRadius: BorderRadius.circular(24),
                               boxShadow: [
                                 BoxShadow(
@@ -421,7 +443,7 @@ class _LayoutManagerPageState extends State<LayoutManagerPage> {
                                         await _repo.saveState(id, state);
                                         if (mounted) {
                                           setState(() {
-                                            _state = state;
+                                            _stateRevision++;
                                             final newNames =
                                                 Map<String, String>.from(
                                                     _names);
@@ -436,14 +458,34 @@ class _LayoutManagerPageState extends State<LayoutManagerPage> {
                                       allowAddRemove: true,
                                       readOnly: false,
                                       allowRename: true,
+                                      immersive: true,
                                     )
                                   else
-                                    VirtualControllerOverlay(
-                                      definition: _definition,
-                                      state: _state,
-                                      onInputEvent: (e) {},
-                                      opacity: 1.0,
-                                      showLabels: true,
+                                    FutureBuilder<VirtualControllerState>(
+                                      key: ValueKey(
+                                          'overlay_${selected}_$_stateRevision'),
+                                      future: _repo.loadState(selected),
+                                      builder: (context, snapshot) {
+                                        final state = snapshot.data;
+                                        if (state == null) {
+                                          return const Center(
+                                            child: SizedBox(
+                                              width: 22,
+                                              height: 22,
+                                              child:
+                                                  CircularProgressIndicator(),
+                                            ),
+                                          );
+                                        }
+                                        return VirtualControllerOverlay(
+                                          definition: _definition,
+                                          state: state,
+                                          onInputEvent: (_) {},
+                                          opacity: 1.0,
+                                          showLabels: true,
+                                          immersive: true,
+                                        );
+                                      },
                                     ),
                                 ],
                               ),
@@ -741,62 +783,61 @@ class _Toolbar extends StatelessWidget {
           left: BorderSide(color: Colors.grey.withValues(alpha: 0.1)),
         ),
       ),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 200,
-            child: InputDecorator(
-            
-              decoration: const InputDecoration(
-                isDense: true,
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.zero,
-                // labelText: '画布预设',
-                floatingLabelBehavior: FloatingLabelBehavior.always,
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: selectedPreset,
-                  isExpanded: true,
-                  items: presets
-                      .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                      .toList(),
-                  onChanged: onPresetChanged,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            SizedBox(
+              width: 200,
+              child: InputDecorator(
+                decoration: const InputDecoration(
+                  isDense: true,
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.zero,
+                  floatingLabelBehavior: FloatingLabelBehavior.always,
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: selectedPreset,
+                    isExpanded: true,
+                    items: presets
+                        .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                        .toList(),
+                    onChanged: onPresetChanged,
+                  ),
                 ),
               ),
             ),
-          ),
-          const VerticalDivider(indent: 12, endIndent: 12, width: 32),
-          _SizeInput(
-            label: 'W',
-            value: width,
-            onChanged: onWidthChanged,
-          ),
-          const SizedBox(width: 16),
-          _SizeInput(
-            label: 'H',
-            value: height,
-            onChanged: onHeightChanged,
-          ),
-          const Spacer(),
-          SegmentedButton<bool>(
-            segments: const [
-              ButtonSegment(
-                value: false,
-                label: Text('预览',style: TextStyle(fontSize: 12),),
-                // icon: Icon(Icons.visibility_outlined),
-              ),
-              ButtonSegment(
-                value: true,
-                label: Text('编辑',style: TextStyle(fontSize: 12),),
-                // icon: Icon(Icons.edit_outlined),
-              ),
-            ],
-            selected: {isEditing},
-            onSelectionChanged: (_) => onToggleEdit(),
-            showSelectedIcon: false,
-          ),
-        ],
+            const VerticalDivider(indent: 12, endIndent: 12, width: 32),
+            _SizeInput(
+              label: 'W',
+              value: width,
+              onChanged: onWidthChanged,
+            ),
+            const SizedBox(width: 16),
+            _SizeInput(
+              label: 'H',
+              value: height,
+              onChanged: onHeightChanged,
+            ),
+            const SizedBox(width: 16),
+            SegmentedButton<bool>(
+              segments: const [
+                ButtonSegment(
+                  value: false,
+                  label: Text('预览', style: TextStyle(fontSize: 12)),
+                ),
+                ButtonSegment(
+                  value: true,
+                  label: Text('编辑', style: TextStyle(fontSize: 12)),
+                ),
+              ],
+              selected: {isEditing},
+              onSelectionChanged: (_) => onToggleEdit(),
+              showSelectedIcon: false,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -897,13 +938,7 @@ class _LayoutRepo {
   Future<void> init() async {
     final ids = await listIds();
     if (ids.isNotEmpty) return;
-    final id = 'default';
-    await _store.setString(_kIds, jsonEncode([id]));
-    await saveState(
-      id,
-      const VirtualControllerState(schemaVersion: 1, controls: []),
-    );
-    await setSelectedId(id);
+    await create();
   }
 
   Future<List<String>> listIds() async {
@@ -953,7 +988,7 @@ class _LayoutRepo {
       ids,
     );
     final state = baseId == null
-        ? const VirtualControllerState(schemaVersion: 1, controls: [])
+        ? VirtualControllerState(schemaVersion: 1, controls: [], name: 'unnamed')
         : await loadState(baseId);
     await _store.setString(_kIds, jsonEncode([...ids, id]));
     await saveState(id, state);

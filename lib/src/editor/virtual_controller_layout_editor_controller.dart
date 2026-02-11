@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../core/dynamic_control_factory.dart';
 import '../models/virtual_controller_models.dart';
 import '../utils/control_geometry.dart';
 import 'resize_direction.dart';
@@ -40,7 +41,6 @@ class VirtualControllerLayoutEditorController extends ChangeNotifier {
   bool get selectedStickClickEnabled {
     final selected = _selected;
     if (selected is! VirtualJoystick) return false;
-    if (selected.mode != 'gamepad') return false;
     final v = _state.stateFor(selected.id)?.config['stickClickEnabled'];
     return v == true;
   }
@@ -48,7 +48,6 @@ class VirtualControllerLayoutEditorController extends ChangeNotifier {
   bool get selectedStickLockEnabled {
     final selected = _selected;
     if (selected is! VirtualJoystick) return false;
-    if (selected.mode != 'gamepad') return false;
     final v = _state.stateFor(selected.id)?.config['stickLockEnabled'];
     return v == true;
   }
@@ -64,7 +63,6 @@ class VirtualControllerLayoutEditorController extends ChangeNotifier {
     if (readOnly || !allowAddRemove) return false;
     final selected = _selected;
     if (selected == null) return false;
-    if (_definitionIds.contains(selected.id)) return false;
     return true;
   }
   double get selectedOpacity {
@@ -132,8 +130,21 @@ class VirtualControllerLayoutEditorController extends ChangeNotifier {
     if (readOnly || !allowAddRemove) return;
     final selected = _selected;
     if (selected == null) return;
-    if (_definitionIds.contains(selected.id)) return;
-    _state = _state.remove(selected.id);
+    if (_definitionIds.contains(selected.id)) {
+      final prev = _state.stateFor(selected.id);
+      final nextConfig = Map<String, dynamic>.from(prev?.config ?? const {});
+      nextConfig['deleted'] = true;
+      _state = _state.upsert(
+        VirtualControlState(
+          id: selected.id,
+          layout: prev?.layout ?? selected.layout,
+          opacity: prev?.opacity ?? 1.0,
+          config: nextConfig,
+        ),
+      );
+    } else {
+      _state = _state.remove(selected.id);
+    }
     _layout = _applyState(_definition, _state);
     _isDirty = true;
     selectControl(null);
@@ -148,6 +159,10 @@ class VirtualControllerLayoutEditorController extends ChangeNotifier {
     final stickClickEnabled = updated.config['stickClickEnabled'];
     if (stickClickEnabled is bool) {
       nextConfig['stickClickEnabled'] = stickClickEnabled;
+    }
+    final stickLockEnabled = updated.config['stickLockEnabled'];
+    if (stickLockEnabled is bool) {
+      nextConfig['stickLockEnabled'] = stickLockEnabled;
     }
     if (updated is VirtualDpad) {
       nextConfig['enable3D'] = updated.enable3D;
@@ -306,7 +321,6 @@ class VirtualControllerLayoutEditorController extends ChangeNotifier {
     if (readOnly) return;
     final selected = _selected;
     if (selected is! VirtualJoystick) return;
-    if (selected.mode != 'gamepad') return;
     final prev = _state.stateFor(selected.id);
     final prevConfig = prev?.config ?? const {};
     final nextConfig = Map<String, dynamic>.from(prevConfig);
@@ -328,7 +342,6 @@ class VirtualControllerLayoutEditorController extends ChangeNotifier {
     if (readOnly) return;
     final selected = _selected;
     if (selected is! VirtualJoystick) return;
-    if (selected.mode != 'gamepad') return;
     final prev = _state.stateFor(selected.id);
     final prevConfig = prev?.config ?? const {};
     final nextConfig = Map<String, dynamic>.from(prevConfig);
@@ -354,6 +367,38 @@ class VirtualControllerLayoutEditorController extends ChangeNotifier {
     final prevConfig = prev?.config ?? const {};
     final nextConfig = Map<String, dynamic>.from(prevConfig);
     nextConfig['enable3D'] = enabled;
+    _state = _state.upsert(
+      VirtualControlState(
+        id: selected.id,
+        layout: prev?.layout ?? selected.layout,
+        opacity: prev?.opacity ?? 1.0,
+        config: nextConfig,
+      ),
+    );
+    _layout = _applyState(_definition, _state);
+    _isDirty = true;
+    notifyListeners();
+  }
+
+  void setSelectedMacroRecordingV2({
+    required List<Map<String, dynamic>> recordingV2,
+    String? label,
+  }) {
+    if (readOnly) return;
+    final selected = _selected;
+    if (selected is! VirtualMacroButton) return;
+
+    final prev = _state.stateFor(selected.id);
+    final prevConfig = prev?.config ?? const {};
+    final nextConfig = Map<String, dynamic>.from(prevConfig);
+
+    nextConfig['recordingV2'] = recordingV2;
+
+    final normalizedLabel = label?.trim();
+    if (normalizedLabel != null && normalizedLabel.isNotEmpty) {
+      nextConfig['label'] = normalizedLabel;
+    }
+
     _state = _state.upsert(
       VirtualControlState(
         id: selected.id,
@@ -499,13 +544,26 @@ class VirtualControllerLayoutEditorController extends ChangeNotifier {
       );
     }
     if (control is VirtualMacroButton) {
+      final configSeq = nextConfig['sequence'] as List?;
+      final sequence = configSeq == null
+          ? control.sequence
+          : configSeq.map((e) {
+              if (e is MacroSequenceItem) return e;
+              return MacroSequenceItem.fromJson(Map<String, dynamic>.from(e));
+            }).toList();
+
+      final configLabel = nextConfig['label'];
+      final appliedLabel = (configLabel is String && configLabel.trim().isNotEmpty)
+          ? configLabel.trim()
+          : nextLabel;
+
       return VirtualMacroButton(
         id: control.id,
-        label: nextLabel,
+        label: appliedLabel,
         layout: nextLayout,
         trigger: control.trigger,
         config: nextConfig,
-        sequence: control.sequence,
+        sequence: sequence,
         style: style ?? control.style,
         feedback: control.feedback,
       );
@@ -583,6 +641,9 @@ VirtualControllerLayout _applyState(
       controls.add(c);
       continue;
     }
+    if (s.config['deleted'] == true) {
+      continue;
+    }
     final nextConfig = Map<String, dynamic>.from(c.config);
     if (s.config.isNotEmpty) {
       nextConfig.addAll(s.config);
@@ -595,7 +656,9 @@ VirtualControllerLayout _applyState(
 
   for (final s in state.controls) {
     if (definitionIds.contains(s.id)) continue;
-    final dynControl = _dynamicControlFromId(s.id, s.layout);
+    if (s.config['deleted'] == true) continue;
+    final dynControl =
+        dynamicControlFromId(s.id, s.layout, runtimeDefaults: false);
     if (dynControl == null) continue;
     final nextConfig = Map<String, dynamic>.from(dynControl.config);
     if (s.config.isNotEmpty) {
@@ -628,175 +691,15 @@ Map<String, dynamic> _extractStateConfig(VirtualControl control) {
   if (control is VirtualDpad) {
     return {'enable3D': control.enable3D};
   }
+  if (control is VirtualMacroButton) {
+    final recordingV2 = control.config['recordingV2'];
+    final label = control.config['label'];
+    return {
+      if (label is String && label.trim().isNotEmpty) 'label': label.trim(),
+      if (recordingV2 is List) 'recordingV2': recordingV2,
+    };
+  }
   return const {};
-}
-
-VirtualControl? _dynamicControlFromId(String id, ControlLayout layout) {
-  if (id.startsWith('btn_')) {
-    final parts = id.split('_');
-    if (parts.length >= 2) {
-      final code = parts[1];
-      final btn = InputBindingRegistry.tryGetGamepadButton(code) ??
-          InputBindingRegistry.registerGamepadButton(code: code);
-      return VirtualButton(
-        id: id,
-        label: btn.label ?? btn.code,
-        layout: layout,
-        trigger: TriggerType.hold,
-        binding: GamepadButtonBinding(btn),
-      );
-    }
-  }
-  if (id.startsWith('mouse_')) {
-    final parts = id.split('_');
-    if (parts.length >= 2) {
-      final button = parts[1];
-      return VirtualMouseButton(
-        id: id,
-        label: button == 'middle' ? 'M' : button,
-        layout: layout,
-        trigger: button == 'right' ? TriggerType.hold : TriggerType.tap,
-        button: button,
-        config: const {},
-      );
-    }
-  }
-  if (id.startsWith('wheel_')) {
-    final parts = id.split('_');
-    if (parts.length >= 2) {
-      final direction = parts[1];
-      return VirtualMouseWheel(
-        id: id,
-        label: direction == 'up' ? '滑轮上' : '滑轮下',
-        layout: layout,
-        trigger: TriggerType.tap,
-        direction: direction,
-        config: const {'inputType': 'mouse_wheel'},
-      );
-    }
-  }
-  if (id.startsWith('split_mouse_')) {
-    return VirtualSplitMouse(
-      id: id,
-      label: '',
-      layout: layout,
-      trigger: TriggerType.hold,
-      config: const {},
-    );
-  }
-  if (id.startsWith('scroll_stick_')) {
-    return VirtualScrollStick(
-      id: id,
-      label: '',
-      layout: layout,
-      trigger: TriggerType.hold,
-      config: const {},
-    );
-  }
-  if (id.startsWith('dpad_')) {
-    return VirtualDpad(
-      id: id,
-      label: '',
-      layout: layout,
-      trigger: TriggerType.hold,
-      enable3D: false,
-      directions: const {
-        DpadDirection.up: GamepadButtonBinding(GamepadButtonId.dpadUp),
-        DpadDirection.down: GamepadButtonBinding(GamepadButtonId.dpadDown),
-        DpadDirection.left: GamepadButtonBinding(GamepadButtonId.dpadLeft),
-        DpadDirection.right: GamepadButtonBinding(GamepadButtonId.dpadRight),
-      },
-      config: const {},
-    );
-  }
-  if (id.startsWith('joystick_wasd_')) {
-    return VirtualJoystick(
-      id: id,
-      label: '',
-      layout: layout,
-      trigger: TriggerType.hold,
-      keys: const [
-        KeyboardKey('W'),
-        KeyboardKey('A'),
-        KeyboardKey('S'),
-        KeyboardKey('D'),
-      ],
-      config: const {
-        'overlayLabels': ['W', 'A', 'S', 'D'],
-        'overlayStyle': 'quadrant',
-      },
-    );
-  }
-  if (id.startsWith('joystick_arrows_')) {
-    return VirtualJoystick(
-      id: id,
-      label: '',
-      layout: layout,
-      trigger: TriggerType.hold,
-      keys: const [
-        KeyboardKey('ArrowUp'),
-        KeyboardKey('ArrowLeft'),
-        KeyboardKey('ArrowDown'),
-        KeyboardKey('ArrowRight'),
-      ],
-      config: const {
-        'overlayLabels': ['↑', '←', '↓', '→'],
-        'overlayStyle': 'quadrant',
-      },
-    );
-  }
-  if (id.startsWith('joystick_gamepad_left_')) {
-    return VirtualJoystick(
-      id: id,
-      label: 'LS',
-      layout: layout,
-      trigger: TriggerType.hold,
-      mode: 'gamepad',
-      stickType: 'left',
-      config: const {
-        'centerLabel': 'L',
-        'overlayStyle': 'center',
-      },
-    );
-  }
-  if (id.startsWith('joystick_gamepad_right_')) {
-    return VirtualJoystick(
-      id: id,
-      label: 'RS',
-      layout: layout,
-      trigger: TriggerType.hold,
-      mode: 'gamepad',
-      stickType: 'right',
-      config: const {
-        'centerLabel': 'R',
-        'overlayStyle': 'center',
-      },
-    );
-  }
-  if (id.startsWith('key_')) {
-    final parts = id.split('_');
-    if (parts.length >= 4) {
-      final keyCode = Uri.decodeComponent(parts[1]);
-      final modsRaw = parts[2];
-      final modifiers = modsRaw == 'none'
-          ? const <KeyboardKey>[]
-          : Uri.decodeComponent(modsRaw)
-              .split('+')
-              .where((e) => e.trim().isNotEmpty)
-              .map((e) => KeyboardKey(e).normalized())
-              .toList(growable: false);
-      final key = KeyboardKey(keyCode).normalized();
-      return VirtualKey(
-        id: id,
-        label: key.code,
-        layout: layout,
-        trigger: TriggerType.tap,
-        binding: KeyboardBinding(key: key, modifiers: modifiers),
-        config: const {},
-      );
-    }
-  }
-  return null;
 }
 
 VirtualControl _cloneControlWithOverrides(
@@ -892,13 +795,24 @@ VirtualControl _cloneControlWithOverrides(
     );
   }
   if (control is VirtualMacroButton) {
+    final configSeq = nextConfig['sequence'] as List?;
+    final sequence = configSeq == null
+        ? control.sequence
+        : configSeq.map((e) {
+            if (e is MacroSequenceItem) return e;
+            return MacroSequenceItem.fromJson(Map<String, dynamic>.from(e));
+          }).toList();
+    final configLabel = nextConfig['label'];
+    final appliedLabel = (configLabel is String && configLabel.trim().isNotEmpty)
+        ? configLabel.trim()
+        : nextLabel;
     return VirtualMacroButton(
       id: control.id,
-      label: nextLabel,
+      label: appliedLabel,
       layout: nextLayout,
       trigger: control.trigger,
       config: nextConfig,
-      sequence: control.sequence,
+      sequence: sequence,
       style: style ?? control.style,
       feedback: control.feedback,
     );

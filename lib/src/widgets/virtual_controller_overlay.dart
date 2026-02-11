@@ -5,6 +5,8 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show SystemUiMode;
+import '../core/dynamic_control_factory.dart';
 import '../models/virtual_controller_models.dart';
 import '../models/input_event.dart';
 import 'controls/joystick_widget.dart';
@@ -16,8 +18,10 @@ import 'controls/mouse_wheel_widget.dart';
 import 'controls/split_mouse_widget.dart';
 import 'controls/scroll_stick_widget.dart';
 import 'controls/custom_widget.dart';
+import 'controls/macro_button_widget.dart';
 import 'shared/default_control_widget.dart';
 import '../utils/control_geometry.dart';
+import 'system_ui_mode_scope.dart';
 
 /// Overlay widget that renders all virtual controls.
 class VirtualControllerOverlay extends StatefulWidget {
@@ -29,6 +33,7 @@ class VirtualControllerOverlay extends StatefulWidget {
     required this.onInputEvent,
     this.opacity = 0.5,
     this.showLabels = true,
+    this.immersive = true,
   });
 
   final VirtualControllerLayout definition;
@@ -43,6 +48,8 @@ class VirtualControllerOverlay extends StatefulWidget {
 
   /// Whether to show labels on controls.
   final bool showLabels;
+
+  final bool immersive;
 
   @override
   State<VirtualControllerOverlay> createState() =>
@@ -69,30 +76,33 @@ class _VirtualControllerOverlayState extends State<VirtualControllerOverlay> {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final screenSize = Size(constraints.maxWidth, constraints.maxHeight);
+    return SystemUiModeScope(
+      mode: widget.immersive ? SystemUiMode.immersiveSticky : null,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final screenSize = Size(constraints.maxWidth, constraints.maxHeight);
 
-        if (screenSize != _lastScreenSize ||
-            _resolvedControls.isEmpty ||
-            _lastDefinition != widget.definition ||
-            _lastState != widget.state) {
-          _resolvedControls = _resolveControls(
-            widget.definition.controls,
-            widget.state,
+          if (screenSize != _lastScreenSize ||
+              _resolvedControls.isEmpty ||
+              _lastDefinition != widget.definition ||
+              _lastState != widget.state) {
+            _resolvedControls = _resolveControls(
+              widget.definition.controls,
+              widget.state,
+            );
+            _lastScreenSize = screenSize;
+            _lastDefinition = widget.definition;
+            _lastState = widget.state;
+          }
+
+          return Stack(
+            children: [
+              for (final item in _resolvedControls)
+                _buildPositionedControl(item, screenSize),
+            ],
           );
-          _lastScreenSize = screenSize;
-          _lastDefinition = widget.definition;
-          _lastState = widget.state;
-        }
-
-        return Stack(
-          children: [
-            for (final item in _resolvedControls)
-              _buildPositionedControl(item, screenSize),
-          ],
-        );
-      },
+        },
+      ),
     );
   }
 
@@ -128,7 +138,7 @@ class _VirtualControllerOverlayState extends State<VirtualControllerOverlay> {
 
     for (final s in state.controls) {
       if (definitionIds.contains(s.id)) continue;
-      final dynamic = _dynamicControlFromId(s.id, s.layout);
+      final dynamic = dynamicControlFromId(s.id, s.layout, runtimeDefaults: true);
       if (dynamic == null) continue;
       final effectiveDynamic = _applyStateToControl(dynamic, s);
       resolved.add(_ResolvedControl(
@@ -194,6 +204,11 @@ class _VirtualControllerOverlayState extends State<VirtualControllerOverlay> {
           showLabel: widget.showLabels,
         ),
       VirtualCustomControl c => VirtualCustomWidget(
+          control: c,
+          onInputEvent: widget.onInputEvent,
+          showLabel: widget.showLabels,
+        ),
+      VirtualMacroButton c => VirtualMacroButtonWidget(
           control: c,
           onInputEvent: widget.onInputEvent,
           showLabel: widget.showLabels,
@@ -318,13 +333,24 @@ VirtualControl _applyStateToControl(
   }
 
   if (control is VirtualMacroButton) {
+    final configSeq = mergedConfig['sequence'] as List?;
+    final sequence = configSeq == null
+        ? control.sequence
+        : configSeq.map((e) {
+            if (e is MacroSequenceItem) return e;
+            return MacroSequenceItem.fromJson(Map<String, dynamic>.from(e));
+          }).toList();
+    final configLabel = mergedConfig['label'];
+    final appliedLabel = (configLabel is String && configLabel.trim().isNotEmpty)
+        ? configLabel.trim()
+        : control.label;
     return VirtualMacroButton(
       id: control.id,
-      label: control.label,
+      label: appliedLabel,
       layout: control.layout,
       trigger: control.trigger,
       config: mergedConfig,
-      sequence: control.sequence,
+      sequence: sequence,
       style: control.style,
       feedback: control.feedback,
     );
@@ -382,176 +408,4 @@ class _ResolvedControl {
     required this.layout,
     required this.opacity,
   });
-}
-
-VirtualControl? _dynamicControlFromId(String id, ControlLayout layout) {
-  if (id.startsWith('btn_')) {
-    final parts = id.split('_');
-    if (parts.length >= 2) {
-      final code = parts[1];
-      final btn = InputBindingRegistry.tryGetGamepadButton(code) ??
-          InputBindingRegistry.registerGamepadButton(code: code);
-      return VirtualButton(
-        id: id,
-        label: btn.label ?? btn.code,
-        layout: layout,
-        trigger: TriggerType.hold,
-        binding: GamepadButtonBinding(btn),
-      );
-    }
-  }
-  if (id.startsWith('mouse_')) {
-    final parts = id.split('_');
-    if (parts.length >= 2) {
-      final button = parts[1];
-      return VirtualMouseButton(
-        id: id,
-        label: button == 'middle' ? 'M' : button,
-        layout: layout,
-        trigger: button == 'right' ? TriggerType.hold : TriggerType.tap,
-        button: button,
-        config: const {},
-      );
-    }
-  }
-  if (id.startsWith('wheel_')) {
-    final parts = id.split('_');
-    if (parts.length >= 2) {
-      final direction = parts[1];
-      return VirtualMouseWheel(
-        id: id,
-        label: direction == 'up' ? '滑轮上' : '滑轮下',
-        layout: layout,
-        trigger: TriggerType.tap,
-        direction: direction,
-        config: const {'inputType': 'mouse_wheel'},
-      );
-    }
-  }
-  if (id.startsWith('split_mouse_')) {
-    return VirtualSplitMouse(
-      id: id,
-      label: '',
-      layout: layout,
-      trigger: TriggerType.hold,
-      config: const {},
-    );
-  }
-  if (id.startsWith('scroll_stick_')) {
-    return VirtualScrollStick(
-      id: id,
-      label: '',
-      layout: layout,
-      trigger: TriggerType.hold,
-      config: const {},
-    );
-  }
-  if (id.startsWith('dpad_')) {
-    return VirtualDpad(
-      id: id,
-      label: '',
-      layout: layout,
-      trigger: TriggerType.hold,
-      enable3D: false,
-      directions: const {
-        DpadDirection.up: GamepadButtonBinding(GamepadButtonId.dpadUp),
-        DpadDirection.down: GamepadButtonBinding(GamepadButtonId.dpadDown),
-        DpadDirection.left: GamepadButtonBinding(GamepadButtonId.dpadLeft),
-        DpadDirection.right: GamepadButtonBinding(GamepadButtonId.dpadRight),
-      },
-      config: const {},
-    );
-  }
-  if (id.startsWith('joystick_wasd_')) {
-    return VirtualJoystick(
-      id: id,
-      label: '',
-      layout: layout,
-      trigger: TriggerType.hold,
-      keys: const [
-        KeyboardKey('W'),
-        KeyboardKey('A'),
-        KeyboardKey('S'),
-        KeyboardKey('D'),
-      ],
-      config: const {
-        'overlayLabels': ['W', 'A', 'S', 'D'],
-        'overlayStyle': 'quadrant',
-      },
-    );
-  }
-  if (id.startsWith('joystick_arrows_')) {
-    return VirtualJoystick(
-      id: id,
-      label: '',
-      layout: layout,
-      trigger: TriggerType.hold,
-      keys: const [
-        KeyboardKey('ArrowUp'),
-        KeyboardKey('ArrowLeft'),
-        KeyboardKey('ArrowDown'),
-        KeyboardKey('ArrowRight'),
-      ],
-      config: const {
-        'overlayLabels': ['↑', '←', '↓', '→'],
-        'overlayStyle': 'quadrant',
-      },
-    );
-  }
-  if (id.startsWith('joystick_gamepad_left_')) {
-    return VirtualJoystick(
-      id: id,
-      label: 'LS',
-      layout: layout,
-      trigger: TriggerType.hold,
-      mode: 'gamepad',
-      stickType: 'left',
-      config: const {
-        'centerLabel': 'L',
-        'overlayStyle': 'center',
-        'stickClickEnabled': false,
-        'stickLockEnabled': false,
-      },
-    );
-  }
-  if (id.startsWith('joystick_gamepad_right_')) {
-    return VirtualJoystick(
-      id: id,
-      label: 'RS',
-      layout: layout,
-      trigger: TriggerType.hold,
-      mode: 'gamepad',
-      stickType: 'right',
-      config: const {
-        'centerLabel': 'R',
-        'overlayStyle': 'center',
-        'stickClickEnabled': false,
-        'stickLockEnabled': false,
-      },
-    );
-  }
-  if (id.startsWith('key_')) {
-    final parts = id.split('_');
-    if (parts.length >= 4) {
-      final keyCode = Uri.decodeComponent(parts[1]);
-      final modsRaw = parts[2];
-      final modifiers = modsRaw == 'none'
-          ? const <KeyboardKey>[]
-          : Uri.decodeComponent(modsRaw)
-              .split('+')
-              .where((e) => e.trim().isNotEmpty)
-              .map((e) => KeyboardKey(e).normalized())
-              .toList(growable: false);
-      final key = KeyboardKey(keyCode).normalized();
-      return VirtualKey(
-        id: id,
-        label: key.code,
-        layout: layout,
-        trigger: TriggerType.tap,
-        binding: KeyboardBinding(key: key, modifiers: modifiers),
-        config: const {},
-      );
-    }
-  }
-  return null;
 }

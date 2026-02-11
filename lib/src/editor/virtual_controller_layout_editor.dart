@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show SystemUiMode;
 import '../models/virtual_controller_models.dart';
 import 'editor_palette_tab.dart';
+import 'macro/macro_suite_page.dart';
 import 'virtual_controller_layout_editor_canvas.dart';
 import 'virtual_controller_layout_editor_controller.dart';
 import 'virtual_controller_layout_editor_palette.dart';
+import '../widgets/system_ui_mode_scope.dart';
+
+part 'layout_editor/virtual_controller_layout_editor_dock.dart';
 
 /// A full-screen editor widget for creating and modifying virtual controller layouts.
 ///
@@ -36,9 +41,11 @@ class VirtualControllerLayoutEditor extends StatefulWidget {
     this.allowResize = true,
     this.allowMove = true,
     this.allowRename = true,
+    this.immersive = true,
     this.enabledPaletteTabs = const {
       VirtualControllerEditorPaletteTab.keyboard,
       VirtualControllerEditorPaletteTab.mouseAndJoystick,
+      VirtualControllerEditorPaletteTab.macro,
       VirtualControllerEditorPaletteTab.xbox,
       VirtualControllerEditorPaletteTab.ps,
     },
@@ -87,6 +94,8 @@ class VirtualControllerLayoutEditor extends StatefulWidget {
 
   /// The initially selected tab in the palette.
   final VirtualControllerEditorPaletteTab initialPaletteTab;
+
+  final bool immersive;
 
   @override
   State<VirtualControllerLayoutEditor> createState() =>
@@ -200,6 +209,79 @@ class _VirtualControllerLayoutEditorState
     );
     if (next == null) return;
     c.replaceState(c.state.copyWith(name: next.trim()), markDirty: true);
+  }
+
+  Future<void> _editMacro() async {
+    final c = _controller;
+    if (c == null) return;
+    final selected = c.selectedControl;
+    if (selected is! VirtualMacroButton) return;
+
+    final initialRecordingV2 = selected.config['recordingV2'];
+    final initV2 = initialRecordingV2 is List
+        ? initialRecordingV2
+            .whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e))
+            .toList()
+        : null;
+
+    final result = await Navigator.of(context).push<MacroDraft>(
+      MaterialPageRoute(
+        builder: (context) => MacroSuitePage(
+          definition: c.definition,
+          state: c.state,
+          initialLabel: selected.label.isEmpty ? 'Macro' : selected.label,
+          initialRecordingV2: initV2,
+          immersive: widget.immersive,
+        ),
+        fullscreenDialog: true,
+      ),
+    );
+
+    if (result != null) {
+      c.setSelectedMacroRecordingV2(
+        recordingV2: result.recordingV2,
+        label: result.label,
+      );
+    }
+  }
+
+  Future<void> _openMacroSuite() async {
+    final c = _controller;
+    if (c == null) return;
+    if (widget.readOnly || !widget.allowAddRemove) return;
+
+    final result = await Navigator.of(context).push<MacroDraft>(
+      MaterialPageRoute(
+        builder: (context) => MacroSuitePage(
+          definition: c.definition,
+          state: c.state,
+          initialLabel: '连招',
+          immersive: widget.immersive,
+        ),
+        fullscreenDialog: true,
+      ),
+    );
+
+    if (result == null) return;
+
+    final id = 'macro_${DateTime.now().microsecondsSinceEpoch}';
+    final control = VirtualMacroButton(
+      id: id,
+      label: result.label,
+      layout: const ControlLayout(x: 0.7, y: 0.45, width: 0.22, height: 0.10),
+      trigger: TriggerType.tap,
+      config: {
+        'label': result.label,
+        'recordingV2': result.recordingV2,
+      },
+      sequence: const [],
+    );
+    c.addControl(control);
+    c.setSelectedMacroRecordingV2(
+      recordingV2: result.recordingV2,
+      label: result.label,
+    );
   }
 
   Future<String?> _showNameBubble({
@@ -408,71 +490,79 @@ class _VirtualControllerLayoutEditorState
   Widget build(BuildContext context) {
     final c = _controller;
 
-    return Scaffold(
-      resizeToAvoidBottomInset: false,
-      backgroundColor: Colors.black,
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          _error!,
-                          style: const TextStyle(color: Colors.white70),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 12),
-                        ElevatedButton(
-                          onPressed: _load,
-                          child: const Text('重试'),
-                        ),
-                      ],
+    return SystemUiModeScope(
+      mode: widget.immersive ? SystemUiMode.immersiveSticky : null,
+      child: Scaffold(
+        resizeToAvoidBottomInset: false,
+        backgroundColor: Colors.black,
+        body: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : _error != null
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _error!,
+                            style: const TextStyle(color: Colors.white70),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 12),
+                          ElevatedButton(
+                            onPressed: _load,
+                            child: const Text('重试'),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                )
-              : c == null
-                  ? const SizedBox.shrink()
-                  : AnimatedBuilder(
-                      animation: c,
-                      builder: (context, _) {
-                        final raw = c.layout;
-                        final decorated =
-                            widget.previewDecorator?.call(raw) ?? raw;
+                  )
+                : c == null
+                    ? const SizedBox.shrink()
+                    : AnimatedBuilder(
+                        animation: c,
+                        builder: (context, _) {
+                          if (_dockCollapsed && c.selectedControl != null) {
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              if (!mounted) return;
+                              if (!_dockCollapsed) return;
+                              if (c.selectedControl == null) return;
+                              setState(() => _dockCollapsed = false);
+                            });
+                          }
+                          final raw = c.layout;
+                          final decorated =
+                              widget.previewDecorator?.call(raw) ?? raw;
 
-                        return Stack(
-                          children: [
-                            Positioned.fill(
-                              child: LayoutBuilder(
-                                builder: (context, constraints) {
-                                  _lastCanvasSize = Size(
-                                    constraints.maxWidth,
-                                    constraints.maxHeight,
-                                  );
-                                  return VirtualControllerLayoutEditorCanvas(
-                                    layout: decorated,
-                                    selectedControlId: c.selectedControl?.id,
-                                    onSelectControl: c.selectControl,
-                                    onMoveControlBy: c.moveControlBy,
-                                    onResizeControlBy: c.resizeControlBy,
-                                    showGrid: true,
-                                    showResizeHandles: false,
-                                    showSelectionOverlay: true,
-                                    onBackgroundTap: () {},
-                                  );
-                                },
+                          return Stack(
+                            children: [
+                              Positioned.fill(
+                                child: LayoutBuilder(
+                                  builder: (context, constraints) {
+                                    _lastCanvasSize = Size(
+                                      constraints.maxWidth,
+                                      constraints.maxHeight,
+                                    );
+                                    return VirtualControllerLayoutEditorCanvas(
+                                      layout: decorated,
+                                      selectedControlId: c.selectedControl?.id,
+                                      onSelectControl: c.selectControl,
+                                      onMoveControlBy: c.moveControlBy,
+                                      onResizeControlBy: c.resizeControlBy,
+                                      showGrid: true,
+                                      showResizeHandles: false,
+                                      showSelectionOverlay: true,
+                                      onBackgroundTap: () {},
+                                    );
+                                  },
+                                ),
                               ),
-                            ),
-                            Positioned(
-                              top: 0,
-                              left: 0,
-                              child: SafeArea(
-                                bottom: false,
+                              Positioned(
+                                top: 0,
+                                left: 0,
                                 child: Padding(
-                                  padding: const EdgeInsets.all(10),
+                                  padding: const EdgeInsets.all(25),
                                   child: _DockPanel(
                                     title: c.layout.name,
                                     readOnly: widget.readOnly,
@@ -480,38 +570,30 @@ class _VirtualControllerLayoutEditorState
                                     allowResize: widget.allowResize,
                                     enabledTabs: widget.enabledPaletteTabs,
                                     hasSelection: c.selectedControl != null,
-                                    showStickClickToggle: c.selectedControl
-                                            is VirtualJoystick &&
-                                        (c.selectedControl as VirtualJoystick)
-                                                .mode ==
-                                            'gamepad',
-                                    stickClickLabel:
-                                        c.selectedControl is VirtualJoystick
-                                            ? (((c.selectedControl
+                                    isMacro:
+                                        c.selectedControl is VirtualMacroButton,
+                                    showStickClickToggle:
+                                        c.selectedControl is VirtualJoystick,
+                                    stickClickLabel: c.selectedControl
+                                            is VirtualJoystick
+                                        ? (((((c.selectedControl
+                                                                as VirtualJoystick)
+                                                            .config['stickType']
+                                                        as String?) ??
+                                                    (c.selectedControl
                                                             as VirtualJoystick)
-                                                        .stickType ==
-                                                    'left')
-                                                ? 'LS重按'
-                                                : 'RS重按')
-                                            : '重按',
+                                                        .stickType) ==
+                                                'left')
+                                            ? 'LS摇杆重按'
+                                            : 'RS摇杆重按')
+                                        : '按键',
                                     stickClickEnabled:
                                         c.selectedStickClickEnabled,
                                     onStickClickChanged:
                                         c.setSelectedStickClickEnabled,
-                                    showStickLockToggle: c.selectedControl
-                                            is VirtualJoystick &&
-                                        (c.selectedControl as VirtualJoystick)
-                                                .mode ==
-                                            'gamepad',
-                                    stickLockLabel:
-                                        c.selectedControl is VirtualJoystick
-                                            ? (((c.selectedControl
-                                                            as VirtualJoystick)
-                                                        .stickType ==
-                                                    'left')
-                                                ? 'LS锁定'
-                                                : 'RS锁定')
-                                            : '锁定',
+                                    showStickLockToggle:
+                                        c.selectedControl is VirtualJoystick,
+                                    stickLockLabel:'摇杆锁定',
                                     stickLockEnabled:
                                         c.selectedStickLockEnabled,
                                     onStickLockChanged:
@@ -527,6 +609,7 @@ class _VirtualControllerLayoutEditorState
                                     sizeValue: c.selectedScale,
                                     opacityValue: c.selectedOpacity,
                                     onRename: _renameLayout,
+                                    onEditMacro: _editMacro,
                                     onClose: () {
                                       widget.onClose?.call();
                                       Navigator.of(context).maybePop();
@@ -542,6 +625,7 @@ class _VirtualControllerLayoutEditorState
                                     onOpenMouse: () => _openPaletteFor(
                                         VirtualControllerEditorPaletteTab
                                             .mouseAndJoystick),
+                                    onOpenMacro: _openMacroSuite,
                                     onOpenXbox: () => _openPaletteFor(
                                         VirtualControllerEditorPaletteTab.xbox),
                                     onOpenPs: () => _openPaletteFor(
@@ -555,472 +639,10 @@ class _VirtualControllerLayoutEditorState
                                   ),
                                 ),
                               ),
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-    );
-  }
-}
-
-class _DockPanel extends StatelessWidget {
-  const _DockPanel({
-    required this.title,
-    required this.readOnly,
-    required this.allowAddRemove,
-    required this.allowResize,
-    required this.enabledTabs,
-    required this.hasSelection,
-    required this.showStickClickToggle,
-    required this.stickClickLabel,
-    required this.stickClickEnabled,
-    required this.onStickClickChanged,
-    required this.showStickLockToggle,
-    required this.stickLockLabel,
-    required this.stickLockEnabled,
-    required this.onStickLockChanged,
-    required this.showDpad3dToggle,
-    required this.dpad3dEnabled,
-    required this.onDpad3dChanged,
-    required this.canRemove,
-    required this.canSave,
-    required this.canRename,
-    required this.sizeValue,
-    required this.opacityValue,
-    required this.onRename,
-    required this.onClose,
-    required this.onSave,
-    required this.onToggleCollapsed,
-    required this.onDeselect,
-    required this.onOpenKeyboard,
-    required this.onOpenMouse,
-    required this.onOpenXbox,
-    required this.onOpenPs,
-    required this.onReset,
-    required this.onRemove,
-    required this.onSizeChanged,
-    required this.onOpacityChanged,
-    required this.collapsed,
-  });
-
-  final String title;
-  final bool readOnly;
-  final bool allowAddRemove;
-  final bool allowResize;
-  final Set<VirtualControllerEditorPaletteTab> enabledTabs;
-  final bool hasSelection;
-  final bool showStickClickToggle;
-  final String stickClickLabel;
-  final bool stickClickEnabled;
-  final ValueChanged<bool> onStickClickChanged;
-  final bool showStickLockToggle;
-  final String stickLockLabel;
-  final bool stickLockEnabled;
-  final ValueChanged<bool> onStickLockChanged;
-  final bool showDpad3dToggle;
-  final bool dpad3dEnabled;
-  final ValueChanged<bool> onDpad3dChanged;
-  final bool canRemove;
-  final bool canSave;
-  final bool canRename;
-  final double sizeValue;
-  final double opacityValue;
-
-  final VoidCallback onRename;
-  final VoidCallback onClose;
-  final VoidCallback onSave;
-  final VoidCallback onToggleCollapsed;
-  final VoidCallback onDeselect;
-  final VoidCallback onOpenKeyboard;
-  final VoidCallback onOpenMouse;
-  final VoidCallback onOpenXbox;
-  final VoidCallback onOpenPs;
-  final VoidCallback onReset;
-  final VoidCallback onRemove;
-  final ValueChanged<double> onSizeChanged;
-  final ValueChanged<double> onOpacityChanged;
-  final bool collapsed;
-
-  @override
-  Widget build(BuildContext context) {
-    if (collapsed) {
-      return _DockPill(
-        onClose: onClose,
-        onExpand: onToggleCollapsed,
-        dirty: canSave,
-      );
-    }
-    return ConstrainedBox(
-      constraints: BoxConstraints(maxWidth: hasSelection ? 400 : 280),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: const Color(0xFF1C1C1E).withValues(alpha: 0.88),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(4, 4, 5, 5),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    onPressed: onClose,
-                    icon:
-                        const Icon(Icons.close, color: Colors.white, size: 18),
-                    tooltip: '关闭',
-                  ),
-                  IconButton(
-                    onPressed: onToggleCollapsed,
-                    icon: const Icon(Icons.chevron_left,
-                        color: Colors.white70, size: 18),
-                    tooltip: '折叠',
-                  ),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 8),
-                      child: GestureDetector(
-                        onTap: canRename ? onRename : null,
-                        child: Text(
-                          title,
-                          style: TextStyle(
-                            color: canRename
-                                ? Colors.white
-                                : Colors.white.withValues(alpha: 0.60),
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: canSave ? onSave : null,
-                    icon: Icon(Icons.save,
-                        color: canSave ? Colors.white : Colors.white24,
-                        size: 18),
-                    tooltip: '保存',
-                  ),
-                  if (hasSelection) ...[
-                    IconButton(
-                      onPressed: onDeselect,
-                      icon: const Icon(Icons.done_outline,
-                          color: Colors.lightBlueAccent, size: 18),
-                      tooltip: '完成',
-                    ),
-                    IconButton(
-                      onPressed: onReset,
-                      icon: const Icon(Icons.restore,
-                          color: Colors.amberAccent, size: 18),
-                      tooltip: '重置',
-                    ),
-                    if (allowAddRemove && !readOnly)
-                      IconButton(
-                        onPressed: () {
-                          if (canRemove) {
-                            onRemove();
-                            return;
-                          }
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('默认控件不可删除')),
+                            ],
                           );
                         },
-                        icon: Icon(Icons.delete_outline,
-                            color:
-                                canRemove ? Colors.redAccent : Colors.white24,
-                            size: 18),
-                        tooltip: canRemove ? '删除' : '默认控件不可删除',
                       ),
-                  ],
-                ],
-              ),
-              if (hasSelection && !readOnly && allowResize) ...[
-                _SmallSlider(
-                  label: '大小',
-                  value: sizeValue.clamp(0.5, 3.0),
-                  min: 0.5,
-                  max: 3.0,
-                  onChanged: onSizeChanged,
-                ),
-                _SmallSlider(
-                  label: '透明',
-                  value: opacityValue.clamp(0.05, 1.0),
-                  min: 0.05,
-                  max: 1.0,
-                  onChanged: onOpacityChanged,
-                ),
-              ] else if (!readOnly && allowAddRemove) ...[
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (enabledTabs
-                        .contains(VirtualControllerEditorPaletteTab.keyboard))
-                      _DockAction(
-                        icon: Icons.keyboard,
-                        label: '键盘',
-                        onTap: onOpenKeyboard,
-                      ),
-                    if (enabledTabs.contains(
-                        VirtualControllerEditorPaletteTab.mouseAndJoystick))
-                      _DockAction(
-                        icon: Icons.mouse,
-                        label: '鼠标',
-                        onTap: onOpenMouse,
-                      ),
-                    if (enabledTabs
-                        .contains(VirtualControllerEditorPaletteTab.xbox))
-                      _DockAction(
-                        icon: Icons.sports_esports,
-                        label: 'Xbox',
-                        onTap: onOpenXbox,
-                      ),
-                    if (enabledTabs
-                        .contains(VirtualControllerEditorPaletteTab.ps))
-                      _DockAction(
-                        icon: Icons.gamepad,
-                        label: 'PS',
-                        onTap: onOpenPs,
-                      ),
-                  ],
-                ),
-              ],
-              Row(
-                children: [
-                  if (hasSelection && !readOnly && showStickClickToggle)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
-                      child: _RadioToggle(
-                        label: stickClickLabel,
-                        value: stickClickEnabled,
-                        onChanged: onStickClickChanged,
-                      ),
-                    ),
-                  if (hasSelection && !readOnly && showStickLockToggle)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
-                      child: _RadioToggle(
-                        label: stickLockLabel,
-                        value: stickLockEnabled,
-                        onChanged: onStickLockChanged,
-                      ),
-                    ),
-                ],
-              ),
-              if (hasSelection && !readOnly && showDpad3dToggle)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
-                  child: _RadioToggle(
-                    label: '3D模式',
-                    value: dpad3dEnabled,
-                    onChanged: onDpad3dChanged,
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _RadioToggle extends StatelessWidget {
-  const _RadioToggle({
-    required this.label,
-    required this.value,
-    required this.onChanged,
-  });
-
-  final String label;
-  final bool value;
-  final ValueChanged<bool> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    const activeColor = Colors.lightBlueAccent;
-    final inactiveColor = Colors.white.withValues(alpha: 0.65);
-    final selected = value;
-
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            label,
-            style: const TextStyle(color: Colors.white70, fontSize: 12),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-        InkWell(
-          onTap: () => onChanged(!value),
-          borderRadius: BorderRadius.circular(10),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            child: Icon(
-              selected
-                  ? Icons.radio_button_checked
-                  : Icons.radio_button_unchecked,
-              size: 16,
-              color: selected ? activeColor : inactiveColor,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _DockPill extends StatelessWidget {
-  const _DockPill({
-    required this.onClose,
-    required this.onExpand,
-    required this.dirty,
-  });
-
-  final VoidCallback onClose;
-  final VoidCallback onExpand;
-  final bool dirty;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: const Color(0xFF1C1C1E).withValues(alpha: 0.88),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                IconButton(
-                  onPressed: onClose,
-                  icon: const Icon(Icons.close, color: Colors.white, size: 18),
-                  tooltip: '关闭',
-                ),
-                if (dirty)
-                  Positioned(
-                    right: 5,
-                    top: 10,
-                    child: Container(
-                      width: 7,
-                      height: 7,
-                      decoration: BoxDecoration(
-                        color: Colors.redAccent,
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            IconButton(
-              onPressed: onExpand,
-              icon: const Icon(Icons.chevron_right,
-                  color: Colors.white, size: 18),
-              tooltip: '展开',
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _DockAction extends StatelessWidget {
-  const _DockAction({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 6),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 16, color: Colors.white70),
-              const SizedBox(width: 6),
-              Text(label,
-                  style: const TextStyle(color: Colors.white, fontSize: 12)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SmallSlider extends StatelessWidget {
-  const _SmallSlider({
-    required this.label,
-    required this.value,
-    required this.min,
-    required this.max,
-    required this.onChanged,
-  });
-
-  final String label;
-  final double value;
-  final double min;
-  final double max;
-  final ValueChanged<double> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 30,
-      padding: const EdgeInsets.only(bottom: 0, left: 18, right: 18),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 40,
-            child: Text(
-              label,
-              style: const TextStyle(color: Colors.white70, fontSize: 12),
-            ),
-          ),
-          Expanded(
-            child: Slider(
-              value: value,
-              min: min,
-              max: max,
-              activeColor: Colors.white70,
-              onChanged: onChanged,
-            ),
-          ),
-          SizedBox(
-            width: 36,
-            child: Text(
-              value.toStringAsFixed(1),
-              style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-              textAlign: TextAlign.right,
-            ),
-          ),
-        ],
       ),
     );
   }

@@ -28,7 +28,7 @@ Add this to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  virtual_gamepad_pro: ^0.2.2
+  virtual_gamepad_pro: ^0.2.3
 ```
 
 ---
@@ -181,6 +181,7 @@ final style = ControlStyle(
 | `onInputEvent` | `Function(InputEvent)` | Callback for receiving input events. (输入事件回调) |
 | `opacity` | `double` | Global opacity of the overlay (0.0 - 1.0). (全局透明度) |
 | `showLabels` | `bool` | Whether to show text labels on controls. (是否显示标签) |
+| `immersive` | `bool` | Hide system UI (status/navigation) with immersive mode. (沉浸式全屏) |
 
 ### 2. `VirtualControllerLayoutEditor`
 运行时布局编辑器：只编辑 state（位置/大小/透明度），不会修改 binding/style/actions。
@@ -192,6 +193,22 @@ final style = ControlStyle(
 | `loadState` | `Future<VirtualControllerState> Function(id)` | 加载 state（JSON）。 |
 | `saveState` | `Future<void> Function(id, state)` | 保存 state（JSON）。 |
 | `previewDecorator` | `Function` | Optional hook to modify layout before preview (e.g. apply themes). (预览装饰器) |
+| `immersive` | `bool` | Hide system UI (status/navigation) with immersive mode. (沉浸式全屏) |
+
+### 3. 宏录制与宏编辑
+
+正常“运行时渲染”只需要 `VirtualControllerOverlay`。  
+宏相关的录制/编辑属于“工具能力”，只在你显式进入宏编辑/录制流程时出现。
+
+#### `MacroSuitePage`
+宏编辑器（主体编辑 + 录制快速录入工具）。用于编辑一段可回放的 `InputEvent` 序列，并最终生成/更新宏按键的数据（写入 `VirtualControllerState.controls[].config['recordingV2']`）。支持 `immersive` 沉浸式全屏。
+
+#### `VirtualControllerMacroRecordingSession`
+宏录制会话页：进入当前布局渲染器录制输入事件（可配置混录真实键盘/鼠标），完成后返回一段 `recordingV2` JSON 列表供宏编辑器可视化编辑（每条事件带 `atMs`）。
+
+#### `VirtualControllerMacroRecorder`
+一个“带左上角录制 Dock”的录制页面组件（用于调试或你自己做录制入口）。  
+如果你把它当成正常渲染器来用，左上角会一直显示录制 Dock；如果你只想渲染控制器，请使用 `VirtualControllerOverlay`。
 
 ### 3. `ControlStyle`
 Defines the visual appearance of a control.
