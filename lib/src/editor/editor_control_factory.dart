@@ -242,7 +242,7 @@ class EditorControlFactory {
       id: 'macro_${DateTime.now().microsecondsSinceEpoch}',
       label: 'Macro',
       layout: layout ??
-          const ControlLayout(x: 0.5, y: 0.5, width: 0.1, height: 0.1),
+          const ControlLayout(x: 0.5, y: 0.5, width: 0.06, height: 0.1),
       trigger: TriggerType.tap,
       config: const {},
       sequence: [],

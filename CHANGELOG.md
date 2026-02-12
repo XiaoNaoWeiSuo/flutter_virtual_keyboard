@@ -3,6 +3,11 @@
 - **Feat**: Add macro recording runtime helpers and widgets (recording session + macro button widget).
 - **Change**: Refactor layout editor internals (palette/layout editor split) and update exports.
 
+## 0.2.4
+- **Change**: Narrowed default Macro Button size (width 0.06, height 0.10) for better ergonomics.
+- **Fix**: Unified all macro button creation paths (palette, factory, editor macro add) to use the narrowed default width.
+- **Docs**: Updated README to reflect default macro button sizing and customization notes.
+
 ## 0.2.2
 - **Fix**: Resolved `IconData` tree-shaking issue in `style_json_codec.dart` to support optimized web builds (`--tree-shake-icons`).
 - **Optimization**: Improved web compilation compatibility by avoiding non-constant `IconData` invocations.

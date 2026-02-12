@@ -269,7 +269,7 @@ class _VirtualControllerLayoutEditorState
     final control = VirtualMacroButton(
       id: id,
       label: result.label,
-      layout: const ControlLayout(x: 0.7, y: 0.45, width: 0.22, height: 0.10),
+      layout: const ControlLayout(x: 0.7, y: 0.45, width: 0.06, height: 0.10),
       trigger: TriggerType.tap,
       config: {
         'label': result.label,

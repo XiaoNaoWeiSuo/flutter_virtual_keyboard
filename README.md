@@ -28,7 +28,7 @@ Add this to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  virtual_gamepad_pro: ^0.2.3
+  virtual_gamepad_pro: ^0.2.4
 ```
 
 ---
@@ -166,6 +166,11 @@ final style = ControlStyle(
   labelStyle: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700),
 );
 ```
+
+#### 宏按键默认尺寸（v0.2.4）
+- 新增宏按键的默认尺寸已调整为：`width: 0.06`, `height: 0.10`（更窄的药丸形态，便于在界面上排布）。
+- 该默认尺寸在调色板原型、工厂方法以及“宏套件添加”入口已统一；已存在布局不受影响（尺寸保存在用户状态中）。
+- 如需自定义，直接修改 `VirtualMacroButton.layout` 的 `width/height`。
 
 ---
 

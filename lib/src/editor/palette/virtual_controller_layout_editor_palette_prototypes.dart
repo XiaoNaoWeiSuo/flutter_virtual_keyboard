@@ -120,7 +120,7 @@ List<VirtualControl> _prototypesFor(VirtualControllerEditorPaletteTab tab) {
         VirtualMacroButton(
           id: 'macro',
           label: 'Macro',
-          layout: dummy,
+          layout: const ControlLayout(x: 0, y: 0, width: 0.06, height: 0.1),
           trigger: TriggerType.tap,
           config: const {},
           sequence: const [],
@@ -346,4 +346,3 @@ List<List<_KeySpec>> _keyboardRows() {
     ],
   ];
 }
-

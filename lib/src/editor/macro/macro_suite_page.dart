@@ -867,6 +867,7 @@ class _MacroSuitePageState extends State<MacroSuitePage> {
     if (!isAxisLike) return;
     if (selected.laneKey != laneKey) return;
 
+    // Calculate new visual selection window
     var nextStart = (selected.startMs + deltaStartMs).clamp(0, 999999).toInt();
     var nextEnd = (selected.endMs + deltaEndMs).clamp(0, 999999).toInt();
     if (nextEnd < nextStart) {
@@ -876,22 +877,147 @@ class _MacroSuitePageState extends State<MacroSuitePage> {
         nextEnd = nextStart;
       }
     }
-    final originStart =
-        (selected.originStartMs ?? selected.startMs).clamp(0, 999999).toInt();
-    final originEnd = (selected.originEndMs ?? selected.endMs)
-        .clamp(originStart, 999999)
-        .toInt();
+
+    // Determine if we are just moving the window (panning) or resizing it
+    final isPanning = deltaStartMs == deltaEndMs;
+
+    int nextOriginStart;
+    int nextOriginEnd;
+
+    if (isPanning) {
+      // If panning, we update originStart/End by the same delta
+      // This means the "source" window moves along with the "mapped" window
+      // so the underlying data *under* the window changes, but the window itself moves.
+      // Wait, if we move the window, and want "scatter points NOT to move",
+      // it means we are just changing WHICH part of the timeline is selected.
+      // The current implementation of _AxisWarpOp maps origin -> mapped.
+      // If we change origin and mapped by the same amount, the mapping might shift?
+      
+      // Let's look at mapAxisAtMs logic:
+      // mapped = a.m + (t - a.o) * ratio
+      // If we shift both a.o and a.m by delta:
+      // new_mapped = (a.m + d) + (t - (a.o + d)) * ratio
+      //            = a.m + d + (t - a.o - d) * ratio
+      //            = a.m + d + (t - a.o)*ratio - d*ratio
+      // If ratio is 1.0 (no scaling), then d - d*1 = 0.
+      // new_mapped = old_mapped.
+      // So if ratio is 1, the data points (t) stay at the same visual position (mapped).
+      
+      // However, if we want to "move the selector", usually we mean:
+      // The visual box moves. The data points underneath stay where they are.
+      // So 'mapped' window moves. 'origin' window moves.
+      // If we update both, the warp operation effectively says "map [newOrigin] to [newMapped]".
+      // If newOrigin = oldOrigin + delta, and newMapped = oldMapped + delta.
+      // Then for a point P at t:
+      // If P was inside [oldOrigin, oldOrigin+W], it mapped to [oldMapped, oldMapped+W].
+      // Now the warp op is defined on [newOrigin, newOrigin+W].
+      // Point P is at t.
+      // If P is NOT inside the new window, it is not warped (or warped by default shift).
+      // If P IS inside the new window, it maps to...
+      
+      // The user says "scatter points also moved".
+      // This implies the Warp Op is being applied to the data points, and shifting them.
+      // If we just want to MOVE THE SELECTION BOX, we should NOT create a Warp Op yet?
+      // OR, the Warp Op should be Identity?
+      
+      // If `applyAxisWarp` is true, the PreviewTimeline uses `axisWarpOps` to transform data positions.
+      // If we just want to select a different range, we should NOT affect the data position yet.
+      // But _adjustAxisWarp is CALLED when dragging.
+      // And it updates `_axisWarpOpsByLaneKey`.
+      // The `_AxisLanePainter` uses these ops to draw.
+      
+      // If the user is just "selecting", they shouldn't be "warping".
+      // Warping implies "I want to change the timing of these events".
+      // Selecting implies "I want to highlight this range".
+      
+      // If the intention of dragging the body is "Adjust Selection Range" (e.g. I missed the start by 1s),
+      // then we should just update `startMs` / `endMs` of the selection, 
+      // AND update `originStart` / `originEnd` to match?
+      // BUT we should NOT produce a Warp effect that shifts data.
+      
+      // If we are in "Warp Mode" (selected.applyAxisWarp == true), 
+      // dragging the box usually means "Move the destination window".
+      // i.e. "I want the events originally at X to now happen at Y".
+      // If we drag the box, we are changing Y.
+      // So the events move visually to Y. This is "Warping".
+      
+      // But the user says "micro-adjust selection area".
+      // This implies they think they are correcting the "Source Selection".
+      // i.e. "I meant to select from 10s to 20s, not 5s to 15s".
+      // In this case, we should move `originStart` and `originEnd` (the source scope).
+      // AND we should probably move `startMs` / `endMs` (the visual scope) to match,
+      // SO THAT NO WARPING HAPPENS (Source == Dest).
+      
+      // If the user wants to Warp (Time-Stretch/Shift), they usually drag the HANDLES (Needles).
+      // Or maybe dragging the body means "Shift Time".
+      
+      // User said: "not move data... micro-adjust selection area".
+      // This confirms they want to fix the SELECTION, not the TIMING.
+      // So we should update `originStart` / `originEnd` AND `startMs` / `endMs` 
+      // such that `origin == mapped`.
+      // And we should probably clear the `axisWarpOps` or make it identity?
+      
+      // If `applyAxisWarp` is true, we are actively warping.
+      // If we want to "fix selection", we should probably disable warping temporarily?
+      // Or just ensure the WarpOp created is Identity (delta = 0).
+      
+      // Let's see.
+      // `originStart` is the original time of the data we want to modify.
+      // `startMs` is where we want it to be.
+      
+      // If I drag the box right:
+      // I am saying "The selection is now later".
+      // If I want the data to NOT move, then the data I am selecting is DIFFERENT data (later data).
+      // So `originStart` must increase.
+      // And `startMs` (visual) must increase.
+      // If `origin` and `start` increase by same amount, 
+      // WarpOp: origin -> start.
+      // (t + d) -> (t + d).
+      // This is identity. The data at (t+d) stays at (t+d).
+      
+      // So why did the points move?
+      // Maybe `originStart` was NOT updated correctly?
+      // In previous code:
+      // originStart = (selected.originStartMs ?? selected.startMs)...
+      // It took the OLD origin.
+      // And created a new Op with OLD origin but NEW mapped (nextStart).
+      // So Origin(T) -> Mapped(T+d).
+      // This shifts data by d. THIS IS THE BUG.
+      
+      // Fix:
+      // If dragging body (panning), we must update `originStart` / `originEnd` as well!
+      // So that Origin moves with Mapped.
+      
+      nextOriginStart = (selected.originStartMs ?? selected.startMs) + deltaStartMs;
+      nextOriginEnd = (selected.originEndMs ?? selected.endMs) + deltaEndMs;
+      
+      // Clamp them
+      nextOriginStart = nextOriginStart.clamp(0, 999999).toInt();
+      nextOriginEnd = nextOriginEnd.clamp(nextOriginStart, 999999).toInt();
+      
+    } else {
+      // Resizing (dragging handles).
+      // Here we usually want to change the Mapped window (Time Stretch),
+      // keeping the Origin window fixed (same source events).
+      // So we use the existing origin.
+      nextOriginStart = (selected.originStartMs ?? selected.startMs).clamp(0, 999999).toInt();
+      nextOriginEnd = (selected.originEndMs ?? selected.endMs).clamp(nextOriginStart, 999999).toInt();
+    }
 
     setState(() {
       final opId = selected.axisWarpId ??
           'warp_${laneKey}_${DateTime.now().microsecondsSinceEpoch}';
+      
+      // If panning, we update both origin and mapped, so data stays put relative to timeline,
+      // but the "active window" moves over new data.
       final nextOp = _AxisWarpOp(
         id: opId,
-        originStartMs: originStart,
-        originEndMs: originEnd,
+        originStartMs: nextOriginStart,
+        originEndMs: nextOriginEnd,
         mappedStartMs: nextStart,
         mappedEndMs: nextEnd,
       );
+      
       _axisWarpOpsByLaneKey[laneKey] = [nextOp];
       _selectedSegment = _SelectedSegment(
         id: selected.id,
@@ -900,8 +1026,8 @@ class _MacroSuitePageState extends State<MacroSuitePage> {
         startMs: nextStart,
         endMs: nextEnd,
         entryIds: selected.entryIds,
-        originStartMs: originStart,
-        originEndMs: originEnd,
+        originStartMs: nextOriginStart,
+        originEndMs: nextOriginEnd,
         applyAxisWarp: true,
         axisWarpId: opId,
       );

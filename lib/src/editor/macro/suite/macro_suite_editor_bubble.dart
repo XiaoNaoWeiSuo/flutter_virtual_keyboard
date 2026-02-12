@@ -106,7 +106,7 @@ class _EditorDrawerState extends State<_EditorDrawer> {
   late String _mouseButton;
 
   bool _pair = false;
-  int _pairDelayMs = 50;
+  int _pairDelayMs = 0;
 
   String get _type => widget.initial.type;
 
@@ -123,7 +123,7 @@ class _EditorDrawerState extends State<_EditorDrawer> {
         _endMs = pairedUpAtMs.clamp(0, 999999);
         _openEnded = false;
       } else {
-        _endMs = (_startMs + 50).clamp(0, 999999).toInt();
+        _endMs = _startMs;
         _openEnded = !widget.isNew;
       }
     } else {
@@ -646,17 +646,17 @@ class _MsStepperState extends State<_MsStepper> {
     _holdTimer?.cancel();
     _holdTicks = 0;
     widget.onChanged(
-      (widget.value + direction * 10).clamp(widget.min, _MsStepper._max),
+      (widget.value + direction * 1).clamp(widget.min, _MsStepper._max),
     );
     _holdTimer = Timer.periodic(const Duration(milliseconds: 80), (_) {
       _holdTicks++;
       final step = _holdTicks < 10
-          ? 10
+          ? 1
           : _holdTicks < 25
-              ? 50
+              ? 10
               : _holdTicks < 50
-                  ? 100
-                  : 200;
+                  ? 50
+                  : 100;
       widget.onChanged(
         (widget.value + direction * step).clamp(widget.min, _MsStepper._max),
       );
@@ -686,7 +686,7 @@ class _MsStepperState extends State<_MsStepper> {
           children: [
             GestureDetector(
               onTap: () => widget.onChanged(
-                (widget.value - 10).clamp(widget.min, _MsStepper._max),
+                (widget.value - 1).clamp(widget.min, _MsStepper._max),
               ),
               onLongPressStart: (_) => _startHold(-1),
               onLongPressEnd: (_) => _stopHold(),
@@ -724,7 +724,7 @@ class _MsStepperState extends State<_MsStepper> {
             const SizedBox(width: 10),
             GestureDetector(
               onTap: () => widget.onChanged(
-                (widget.value + 10).clamp(widget.min, _MsStepper._max),
+                (widget.value + 1).clamp(widget.min, _MsStepper._max),
               ),
               onLongPressStart: (_) => _startHold(1),
               onLongPressEnd: (_) => _stopHold(),
