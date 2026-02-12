@@ -60,26 +60,45 @@ const List<String> _keyboardKeyCandidates = [
   'F12',
 ];
 
-class _EditorBubble extends StatefulWidget {
-  const _EditorBubble({
+class _EditorSavePayload {
+  const _EditorSavePayload({
+    required this.events,
+    this.removePairedUp = false,
+  });
+
+  final List<RecordedTimelineEvent> events;
+  final bool removePairedUp;
+}
+
+enum _SignalTimeMode { range, single }
+
+class _EditorDrawer extends StatefulWidget {
+  const _EditorDrawer({
     required this.initial,
+    required this.initialPairedUpAtMs,
+    required this.isNew,
     required this.onCancel,
     required this.onSave,
   });
 
   final RecordedTimelineEvent initial;
+  final int? initialPairedUpAtMs;
+  final bool isNew;
   final VoidCallback onCancel;
-  final ValueChanged<List<RecordedTimelineEvent>> onSave;
+  final ValueChanged<_EditorSavePayload> onSave;
 
   @override
-  State<_EditorBubble> createState() => _EditorBubbleState();
+  State<_EditorDrawer> createState() => _EditorDrawerState();
 }
 
-class _EditorBubbleState extends State<_EditorBubble> {
-  Timer? _holdTimer;
-  int _holdTicks = 0;
+class _EditorDrawerState extends State<_EditorDrawer> {
+  late _SignalTimeMode _timeMode;
 
   late int _atMs;
+  late int _startMs;
+  late int _endMs;
+
+  bool _openEnded = false;
   late bool _isDown;
   late String _keyboardKey;
   late Set<String> _modifiers;
@@ -96,6 +115,21 @@ class _EditorBubbleState extends State<_EditorBubble> {
     super.initState();
     final init = widget.initial;
     _atMs = init.atMs.clamp(0, 999999);
+    _startMs = _atMs;
+    final pairedUpAtMs = widget.initialPairedUpAtMs;
+    if (_type != 'delay') {
+      _timeMode = _SignalTimeMode.range;
+      if (pairedUpAtMs != null) {
+        _endMs = pairedUpAtMs.clamp(0, 999999);
+        _openEnded = false;
+      } else {
+        _endMs = (_startMs + 50).clamp(0, 999999).toInt();
+        _openEnded = !widget.isNew;
+      }
+    } else {
+      _timeMode = _SignalTimeMode.single;
+      _endMs = _startMs;
+    }
     final data = init.data;
     _isDown = data['isDown'] == false ? false : true;
     _keyboardKey = data['key']?.toString() ?? 'A';
@@ -105,41 +139,11 @@ class _EditorBubbleState extends State<_EditorBubble> {
     _mouseButton = data['button']?.toString() ?? 'left';
   }
 
-  @override
-  void dispose() {
-    _holdTimer?.cancel();
-    super.dispose();
-  }
-
-  void _startHold(int direction) {
-    _holdTimer?.cancel();
-    _holdTicks = 0;
-    setState(() {
-      _atMs = (_atMs + direction * 10).clamp(0, 999999).toInt();
-    });
-    _holdTimer = Timer.periodic(const Duration(milliseconds: 80), (_) {
-      _holdTicks++;
-      final step = _holdTicks < 10
-          ? 10
-          : _holdTicks < 25
-              ? 50
-              : _holdTicks < 50
-                  ? 100
-                  : 200;
-      setState(() {
-        _atMs = (_atMs + direction * step).clamp(0, 999999).toInt();
-      });
-    });
-  }
-
-  void _stopHold() {
-    _holdTimer?.cancel();
-    _holdTimer = null;
-  }
-
   void _save() {
     final type = _type;
     final atMs = _atMs.clamp(0, 999999).toInt();
+    final startMs = _startMs.clamp(0, 999999).toInt();
+    final endMs = _endMs.clamp(0, 999999).toInt();
 
     final data = <String, dynamic>{};
     switch (type) {
@@ -147,34 +151,67 @@ class _EditorBubbleState extends State<_EditorBubble> {
         break;
       case 'keyboard':
         data['key'] = _keyboardKey.trim().isEmpty ? 'A' : _keyboardKey.trim();
-        data['isDown'] = _pair ? true : _isDown;
         if (_modifiers.isNotEmpty) {
           data['modifiers'] = _modifiers.toList(growable: false);
         }
         break;
       case 'mouse_button':
         data['button'] = _mouseButton;
-        data['isDown'] = _pair ? true : _isDown;
         break;
       case 'gamepad_button':
         data['button'] = _gamepadButton.trim().isEmpty ? 'a' : _gamepadButton;
-        data['isDown'] = _pair ? true : _isDown;
         break;
       default:
         return;
     }
 
-    final first = RecordedTimelineEvent(atMs: atMs, type: type, data: data);
-    if (!_pair || type == 'delay') {
-      widget.onSave([first]);
+    if (type == 'delay') {
+      widget.onSave(
+        _EditorSavePayload(
+          events: [RecordedTimelineEvent(atMs: atMs, type: type, data: data)],
+        ),
+      );
       return;
     }
 
-    final upAtMs = (atMs + _pairDelayMs).clamp(0, 999999).toInt();
+    if (_timeMode == _SignalTimeMode.range) {
+      final downData = <String, dynamic>{...data, 'isDown': true};
+      final down =
+          RecordedTimelineEvent(atMs: startMs, type: type, data: downData);
+
+      if (_openEnded) {
+        widget.onSave(
+          _EditorSavePayload(
+            events: [down],
+            removePairedUp:
+                !widget.isNew && widget.initialPairedUpAtMs != null,
+          ),
+        );
+        return;
+      }
+
+      final fixedEndMs = endMs < startMs ? startMs : endMs;
+      final upData = <String, dynamic>{...data, 'isDown': false};
+      final up =
+          RecordedTimelineEvent(atMs: fixedEndMs, type: type, data: upData);
+      widget.onSave(_EditorSavePayload(events: [down, up]));
+      return;
+    }
+
+    final downAtMs = atMs;
+    final downData = <String, dynamic>{...data, 'isDown': _pair ? true : _isDown};
+    final first =
+        RecordedTimelineEvent(atMs: downAtMs, type: type, data: downData);
+    if (!_pair) {
+      widget.onSave(_EditorSavePayload(events: [first]));
+      return;
+    }
+
+    final upAtMs = (downAtMs + _pairDelayMs).clamp(0, 999999).toInt();
     final upData = <String, dynamic>{...data, 'isDown': false};
     final second =
         RecordedTimelineEvent(atMs: upAtMs, type: type, data: upData);
-    widget.onSave([first, second]);
+    widget.onSave(_EditorSavePayload(events: [first, second]));
   }
 
   List<String> _withCurrentFirst(String current, List<String> base) {
@@ -236,308 +273,305 @@ class _EditorBubbleState extends State<_EditorBubble> {
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: const Color(0xFF1C1C1E).withValues(alpha: 0.92),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.28),
-            blurRadius: 18,
-            offset: const Offset(0, 10),
-          )
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(10),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 360),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+    final type = _type;
+    final showSignalMode = type != 'delay';
+    final canRange = showSignalMode;
+    final endMs = _openEnded ? null : _endMs;
+    final durationMs = endMs == null ? null : (endMs - _startMs).clamp(0, 999999);
+
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.fromLTRB(16, 14, 10, 14),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.03),
+            border: Border(
+              bottom: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
+            ),
+          ),
+          child: Row(
             children: [
-              Text(
-                _titleForType(_type),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 13,
+              Expanded(
+                child: Text(
+                  _titleForType(type),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 14,
+                    letterSpacing: -0.2,
+                  ),
                 ),
               ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  GestureDetector(
-                    onTap: () =>
-                        setState(() => _atMs = (_atMs - 10).clamp(0, 999999)),
-                    onLongPressStart: (_) => _startHold(-1),
-                    onLongPressEnd: (_) => _stopHold(),
-                    child: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.06),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.10)),
-                      ),
-                      child: const Icon(Icons.remove, color: Colors.white70),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Container(
-                      height: 40,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.04),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.08)),
-                      ),
-                      child: Text(
-                        '${_atMs}ms',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  GestureDetector(
-                    onTap: () =>
-                        setState(() => _atMs = (_atMs + 10).clamp(0, 999999)),
-                    onLongPressStart: (_) => _startHold(1),
-                    onLongPressEnd: (_) => _stopHold(),
-                    child: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.06),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.10)),
-                      ),
-                      child: const Icon(Icons.add, color: Colors.white70),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              if (_type != 'delay') ...[
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween
-                  ,
-                  children: [
-                    if (!_pair)
-                      SegmentedButton<bool>(
-                        segments: const [
-                          ButtonSegment(value: true, label: Text('Down')),
-                          ButtonSegment(value: false, label: Text('Up')),
-                        ],
-                        selected: {_isDown},
-                        onSelectionChanged: (v) =>
-                            setState(() => _isDown = v.first),
-                        showSelectedIcon: false,
-                      ),
-                    FilterChip(
-                      label: const Text('Down+Up'),
-                      selected: _pair,
-                      onSelected: (v) => setState(() {
-                        _pair = v;
-                        if (_pair) _isDown = true;
-                      }),
-                      showCheckmark: false,
-                    ),
-                    if (_pair)
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          GestureDetector(
-                            onTap: () => setState(() {
-                              _pairDelayMs =
-                                  (_pairDelayMs - 10).clamp(0, 999999).toInt();
-                            }),
-                            child: Container(
-                              width: 34,
-                              height: 34,
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.06),
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.10),
-                                ),
-                              ),
-                              child: const Icon(Icons.remove,
-                                  color: Colors.white70, size: 18),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10),
-                            height: 34,
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.04),
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.08),
-                              ),
-                            ),
-                            child: Text(
-                              '${_pairDelayMs}ms',
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.8),
-                                fontWeight: FontWeight.w800,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          GestureDetector(
-                            onTap: () => setState(() {
-                              _pairDelayMs =
-                                  (_pairDelayMs + 10).clamp(0, 999999).toInt();
-                            }),
-                            child: Container(
-                              width: 34,
-                              height: 34,
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.06),
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.10),
-                                ),
-                              ),
-                              child: const Icon(Icons.add,
-                                  color: Colors.white70, size: 18),
-                            ),
-                          ),
-                        ],
-                      ),
-                  ],
-                ),
-              ],
-              if (_type == 'keyboard') ...[
-                _dropdown(
-                  label: 'Key',
-                  value: _keyboardKey,
-                  options: _withCurrentFirst(
-                    _keyboardKey,
-                    _keyboardKeyCandidates,
-                  ),
-                  onChanged: (v) => setState(() => _keyboardKey = v),
-                ),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    _ModifierChip(
-                      label: 'Ctrl',
-                      selected: _modifiers.contains('ctrl'),
-                      onChanged: (selected) {
-                        final next = Set<String>.from(_modifiers);
-                        if (selected) {
-                          next.add('ctrl');
-                        } else {
-                          next.remove('ctrl');
-                        }
-                        setState(() => _modifiers = next);
-                      },
-                    ),
-                    _ModifierChip(
-                      label: 'Shift',
-                      selected: _modifiers.contains('shift'),
-                      onChanged: (selected) {
-                        final next = Set<String>.from(_modifiers);
-                        if (selected) {
-                          next.add('shift');
-                        } else {
-                          next.remove('shift');
-                        }
-                        setState(() => _modifiers = next);
-                      },
-                    ),
-                    _ModifierChip(
-                      label: 'Alt',
-                      selected: _modifiers.contains('alt'),
-                      onChanged: (selected) {
-                        final next = Set<String>.from(_modifiers);
-                        if (selected) {
-                          next.add('alt');
-                        } else {
-                          next.remove('alt');
-                        }
-                        setState(() => _modifiers = next);
-                      },
-                    ),
-                    _ModifierChip(
-                      label: 'Meta',
-                      selected: _modifiers.contains('meta'),
-                      onChanged: (selected) {
-                        final next = Set<String>.from(_modifiers);
-                        if (selected) {
-                          next.add('meta');
-                        } else {
-                          next.remove('meta');
-                        }
-                        setState(() => _modifiers = next);
-                      },
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-              ],
-              if (_type == 'mouse_button') ...[
-                SegmentedButton<String>(
-                  segments: const [
-                    ButtonSegment(value: 'left', label: Text('Left')),
-                    ButtonSegment(value: 'middle', label: Text('Middle')),
-                    ButtonSegment(value: 'right', label: Text('Right')),
-                  ],
-                  selected: {_mouseButton},
-                  onSelectionChanged: (v) =>
-                      setState(() => _mouseButton = v.first),
-                  showSelectedIcon: false,
-                ),
-                const SizedBox(height: 10),
-              ],
-              if (_type == 'gamepad_button') ...[
-                _dropdown(
-                  label: 'Button',
-                  value: _gamepadButton,
-                  options: _withCurrentFirst(
-                    _gamepadButton,
-                    GamepadButtonId.builtIns.map((e) => e.code).toList(),
-                  ),
-                  onChanged: (v) => setState(() => _gamepadButton = v),
-                ),
-                const SizedBox(height: 10),
-              ],
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: widget.onCancel,
-                      child: const Text('取消'),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: FilledButton(
-                      onPressed: _save,
-                      child: const Text('保存'),
-                    ),
-                  ),
-                ],
+              IconButton(
+                onPressed: widget.onCancel,
+                icon: const Icon(Icons.close, color: Colors.white70),
+                visualDensity: VisualDensity.compact,
+                tooltip: '关闭',
               ),
             ],
           ),
         ),
-      ),
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (canRange)
+                  SegmentedButton<_SignalTimeMode>(
+                    segments: const [
+                      ButtonSegment(value: _SignalTimeMode.range, label: Text('区间')),
+                      ButtonSegment(value: _SignalTimeMode.single, label: Text('单点')),
+                    ],
+                    selected: {_timeMode},
+                    onSelectionChanged: (v) =>
+                        setState(() => _timeMode = v.first),
+                    showSelectedIcon: false,
+                  ),
+                if (canRange) const SizedBox(height: 14),
+                if (!showSignalMode || _timeMode == _SignalTimeMode.single) ...[
+                  _MsStepper(
+                    label: '时间点',
+                    value: _atMs,
+                    onChanged: (v) => setState(() => _atMs = v),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                if (showSignalMode && _timeMode == _SignalTimeMode.range) ...[
+                  _MsStepper(
+                    label: '开始 (Down)',
+                    value: _startMs,
+                    onChanged: (v) => setState(() {
+                      _startMs = v;
+                      if (!_openEnded && _endMs < _startMs) _endMs = _startMs;
+                    }),
+                  ),
+                  const SizedBox(height: 12),
+                  if (!_openEnded) ...[
+                    _MsStepper(
+                      label: '结束 (Up)',
+                      value: _endMs,
+                      onChanged: (v) => setState(() {
+                        _endMs = v;
+                        if (_endMs < _startMs) _startMs = _endMs;
+                      }),
+                    ),
+                    const SizedBox(height: 10),
+                  ],
+                  Row(
+                    children: [
+                      FilterChip(
+                        label: const Text('开放(无Up)'),
+                        selected: _openEnded,
+                        showCheckmark: false,
+                        onSelected: (v) => setState(() {
+                          _openEnded = v;
+                          if (!_openEnded && _endMs < _startMs) {
+                            _endMs = _startMs;
+                          }
+                        }),
+                      ),
+                      const Spacer(),
+                      if (durationMs != null)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.06),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.10),
+                            ),
+                          ),
+                          child: Text(
+                            '长度 $durationMs ms',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.75),
+                              fontWeight: FontWeight.w800,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    _openEnded
+                        ? '开放区间会保留 Down，不生成 Up；可在工具栏“自动补Up”统一收口。'
+                        : '区间会生成一对 Down/Up；它们会在时间轴预览里成为一个可拖拽的时间条。',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.45),
+                      fontSize: 12,
+                      height: 1.2,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                ],
+                if (showSignalMode && _timeMode == _SignalTimeMode.single) ...[
+                  Row(
+                    children: [
+                      if (!_pair)
+                        Expanded(
+                          child: SegmentedButton<bool>(
+                            segments: const [
+                              ButtonSegment(value: true, label: Text('Down')),
+                              ButtonSegment(value: false, label: Text('Up')),
+                            ],
+                            selected: {_isDown},
+                            onSelectionChanged: (v) =>
+                                setState(() => _isDown = v.first),
+                            showSelectedIcon: false,
+                          ),
+                        ),
+                      if (!_pair) const SizedBox(width: 10),
+                      FilterChip(
+                        label: const Text('Down+Up'),
+                        selected: _pair,
+                        onSelected: (v) => setState(() {
+                          _pair = v;
+                          if (_pair) _isDown = true;
+                        }),
+                        showCheckmark: false,
+                      ),
+                    ],
+                  ),
+                  if (_pair) ...[
+                    const SizedBox(height: 10),
+                    _MsStepper(
+                      label: 'Up 延后',
+                      value: _pairDelayMs,
+                      onChanged: (v) => setState(() => _pairDelayMs = v),
+                      min: 0,
+                    ),
+                    const SizedBox(height: 14),
+                  ] else
+                    const SizedBox(height: 14),
+                ],
+                if (type == 'keyboard') ...[
+                  _dropdown(
+                    label: 'Key',
+                    value: _keyboardKey,
+                    options: _withCurrentFirst(
+                      _keyboardKey,
+                      _keyboardKeyCandidates,
+                    ),
+                    onChanged: (v) => setState(() => _keyboardKey = v),
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _ModifierChip(
+                        label: 'Ctrl',
+                        selected: _modifiers.contains('ctrl'),
+                        onChanged: (selected) {
+                          final next = Set<String>.from(_modifiers);
+                          if (selected) {
+                            next.add('ctrl');
+                          } else {
+                            next.remove('ctrl');
+                          }
+                          setState(() => _modifiers = next);
+                        },
+                      ),
+                      _ModifierChip(
+                        label: 'Shift',
+                        selected: _modifiers.contains('shift'),
+                        onChanged: (selected) {
+                          final next = Set<String>.from(_modifiers);
+                          if (selected) {
+                            next.add('shift');
+                          } else {
+                            next.remove('shift');
+                          }
+                          setState(() => _modifiers = next);
+                        },
+                      ),
+                      _ModifierChip(
+                        label: 'Alt',
+                        selected: _modifiers.contains('alt'),
+                        onChanged: (selected) {
+                          final next = Set<String>.from(_modifiers);
+                          if (selected) {
+                            next.add('alt');
+                          } else {
+                            next.remove('alt');
+                          }
+                          setState(() => _modifiers = next);
+                        },
+                      ),
+                      _ModifierChip(
+                        label: 'Meta',
+                        selected: _modifiers.contains('meta'),
+                        onChanged: (selected) {
+                          final next = Set<String>.from(_modifiers);
+                          if (selected) {
+                            next.add('meta');
+                          } else {
+                            next.remove('meta');
+                          }
+                          setState(() => _modifiers = next);
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                ],
+                if (type == 'mouse_button') ...[
+                  SegmentedButton<String>(
+                    segments: const [
+                      ButtonSegment(value: 'left', label: Text('Left')),
+                      ButtonSegment(value: 'middle', label: Text('Middle')),
+                      ButtonSegment(value: 'right', label: Text('Right')),
+                    ],
+                    selected: {_mouseButton},
+                    onSelectionChanged: (v) =>
+                        setState(() => _mouseButton = v.first),
+                    showSelectedIcon: false,
+                  ),
+                  const SizedBox(height: 14),
+                ],
+                if (type == 'gamepad_button') ...[
+                  _dropdown(
+                    label: 'Button',
+                    value: _gamepadButton,
+                    options: _withCurrentFirst(
+                      _gamepadButton,
+                      GamepadButtonId.builtIns.map((e) => e.code).toList(),
+                    ),
+                    onChanged: (v) => setState(() => _gamepadButton = v),
+                  ),
+                  const SizedBox(height: 14),
+                ],
+              ],
+            ),
+          ),
+        ),
+        SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
+            child: Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: widget.onCancel,
+                    child: const Text('取消'),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: _save,
+                    child: const Text('保存'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -575,6 +609,139 @@ class _ModifierChip extends StatelessWidget {
       selected: selected,
       onSelected: onChanged,
       showCheckmark: false,
+    );
+  }
+}
+
+class _MsStepper extends StatefulWidget {
+  const _MsStepper({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+    this.min = 0,
+  });
+
+  static const int _max = 999999;
+
+  final String label;
+  final int value;
+  final ValueChanged<int> onChanged;
+  final int min;
+
+  @override
+  State<_MsStepper> createState() => _MsStepperState();
+}
+
+class _MsStepperState extends State<_MsStepper> {
+  Timer? _holdTimer;
+  int _holdTicks = 0;
+
+  @override
+  void dispose() {
+    _holdTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startHold(int direction) {
+    _holdTimer?.cancel();
+    _holdTicks = 0;
+    widget.onChanged(
+      (widget.value + direction * 10).clamp(widget.min, _MsStepper._max),
+    );
+    _holdTimer = Timer.periodic(const Duration(milliseconds: 80), (_) {
+      _holdTicks++;
+      final step = _holdTicks < 10
+          ? 10
+          : _holdTicks < 25
+              ? 50
+              : _holdTicks < 50
+                  ? 100
+                  : 200;
+      widget.onChanged(
+        (widget.value + direction * step).clamp(widget.min, _MsStepper._max),
+      );
+    });
+  }
+
+  void _stopHold() {
+    _holdTimer?.cancel();
+    _holdTimer = null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          widget.label,
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.55),
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            GestureDetector(
+              onTap: () => widget.onChanged(
+                (widget.value - 10).clamp(widget.min, _MsStepper._max),
+              ),
+              onLongPressStart: (_) => _startHold(-1),
+              onLongPressEnd: (_) => _stopHold(),
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+                ),
+                child: const Icon(Icons.remove, color: Colors.white70),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Container(
+                height: 40,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.04),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                ),
+                child: Text(
+                  '${widget.value}ms',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            GestureDetector(
+              onTap: () => widget.onChanged(
+                (widget.value + 10).clamp(widget.min, _MsStepper._max),
+              ),
+              onLongPressStart: (_) => _startHold(1),
+              onLongPressEnd: (_) => _stopHold(),
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+                ),
+                child: const Icon(Icons.add, color: Colors.white70),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

@@ -1,6 +1,6 @@
 part of '../macro_suite_page.dart';
 
-class _PreviewTimeline extends StatelessWidget {
+class _PreviewTimeline extends StatefulWidget {
   const _PreviewTimeline({
     required this.steps,
     required this.durationMs,
@@ -8,7 +8,12 @@ class _PreviewTimeline extends StatelessWidget {
     required this.trackHorizontalScrollController,
     required this.axisScrollController,
     required this.trackScrollController,
-    required this.onTapEntry,
+    required this.zoom,
+    required this.selected,
+    required this.onSelectedChanged,
+    required this.onMoveSegment,
+    required this.onResizeDownUp,
+    required this.onZoomChanged,
   });
 
   final List<_StepEntry> steps;
@@ -17,125 +22,198 @@ class _PreviewTimeline extends StatelessWidget {
   final ScrollController trackHorizontalScrollController;
   final ScrollController axisScrollController;
   final ScrollController trackScrollController;
-  final ValueChanged<String> onTapEntry;
+  final double zoom;
+  final _SelectedSegment? selected;
+  final ValueChanged<_SelectedSegment?> onSelectedChanged;
+  final void Function(List<String> entryIds, int deltaMs) onMoveSegment;
+  final void Function(
+    String downId,
+    String upId, {
+    required int deltaStartMs,
+    required int deltaEndMs,
+  }) onResizeDownUp;
+  final ValueChanged<double> onZoomChanged;
+
+  @override
+  State<_PreviewTimeline> createState() => _PreviewTimelineState();
+}
+
+class _PreviewTimelineState extends State<_PreviewTimeline> {
+  double _zoomGestureBase = 1.0;
+  bool _pinching = false;
 
   @override
   Widget build(BuildContext context) {
-    final ordered = steps.toList()
+    final ordered = widget.steps.toList()
       ..sort((a, b) => a.event.atMs.compareTo(b.event.atMs));
-    final lanes = _buildLanes(ordered, durationMs: durationMs);
+    final lanes = _buildLanes(ordered, durationMs: widget.durationMs);
+    final selected = widget.selected;
+    final showNeedle = selected != null &&
+        selected.type != 'joystick' &&
+        selected.type != 'gamepad_axis';
 
-    const axisWidth = 120.0;
+    const axisWidth = 80.0;
     const rulerHeight = 30.0;
     const rowHeight = 32.0;
     const leftPad = 12.0;
     const rightPad = 20.0;
-    const pxPerMs = 0.14;
+    final pxPerMs = 0.14 * widget.zoom;
     final contentWidth =
-        (durationMs.clamp(0, 999999) * pxPerMs) + leftPad + rightPad;
+        (widget.durationMs.clamp(0, 999999) * pxPerMs) + leftPad + rightPad;
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.02),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(10),
-        child: Column(
-          children: [
-            SizedBox(
-              height: rulerHeight,
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: axisWidth,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          '轨道',
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.55),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
+    return GestureDetector(
+      onTap: () => widget.onSelectedChanged(null),
+      onScaleStart: (d) {
+        if (d.pointerCount < 2) return;
+        _zoomGestureBase = widget.zoom;
+        setState(() => _pinching = true);
+      },
+      onScaleUpdate: (d) {
+        if (d.pointerCount < 2) return;
+        final next = (_zoomGestureBase * d.scale).clamp(0.4, 4.0);
+        widget.onZoomChanged(next);
+      },
+      onScaleEnd: (_) => setState(() => _pinching = false),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.02),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: Column(
+            children: [
+              SizedBox(
+                height: rulerHeight,
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: axisWidth,
+                      child: Row(
+                        children: [
+                          IconButton(
+                            onPressed: () => widget.onZoomChanged(
+                              (widget.zoom / 1.15).clamp(0.4, 4.0),
+                            ),
+                            icon: const Icon(Icons.remove,
+                                color: Colors.white60, size: 12),
+                            visualDensity: VisualDensity.compact,
+                            tooltip: '缩小',
                           ),
-                        ),
+                          IconButton(
+                            onPressed: () => widget.onZoomChanged(
+                              (widget.zoom * 1.15).clamp(0.4, 4.0),
+                            ),
+                            icon: const Icon(Icons.add,
+                                color: Colors.white60, size: 12),
+                            visualDensity: VisualDensity.compact,
+                            tooltip: '放大',
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      controller: rulerScrollController,
-                      scrollDirection: Axis.horizontal,
-                      child: SizedBox(
-                        width: contentWidth,
-                        height: rulerHeight,
-                        child: CustomPaint(
-                          painter: _TimeRulerPainter(
-                            durationMs: durationMs,
-                            pxPerMs: pxPerMs,
-                            leftPad: leftPad,
-                            height: rulerHeight,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: axisWidth,
-                    child: ListView.builder(
-                      controller: axisScrollController,
-                      itemCount: lanes.length,
-                      itemExtent: rowHeight,
-                      itemBuilder: (context, index) => _PreviewLaneLabelRow(
-                        lane: lanes[index],
-                        index: index,
-                        onTapEntry: onTapEntry,
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      controller: trackHorizontalScrollController,
-                      scrollDirection: Axis.horizontal,
-                      child: SizedBox(
-                        width: contentWidth,
-                        child: CustomPaint(
-                          painter: _TimeGridPainter(
-                            durationMs: durationMs,
-                            pxPerMs: pxPerMs,
-                            leftPad: leftPad,
-                            height: lanes.length * rowHeight,
-                          ),
-                          child: ListView.builder(
-                            controller: trackScrollController,
-                            itemCount: lanes.length,
-                            itemExtent: rowHeight,
-                            itemBuilder: (context, index) => _PreviewLaneRow(
-                              lane: lanes[index],
-                              laneIndex: index,
-                              rowHeight: rowHeight,
-                              leftPad: leftPad,
+                    Expanded(
+                      child: SingleChildScrollView(
+                        controller: widget.rulerScrollController,
+                        physics: _pinching
+                            ? const NeverScrollableScrollPhysics()
+                            : null,
+                        scrollDirection: Axis.horizontal,
+                        child: SizedBox(
+                          width: contentWidth,
+                          height: rulerHeight,
+                          child: CustomPaint(
+                            painter: _TimeRulerPainter(
+                              durationMs: widget.durationMs,
                               pxPerMs: pxPerMs,
-                              onTapEntry: onTapEntry,
+                              leftPad: leftPad,
+                              height: rulerHeight,
                             ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+              Expanded(
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: axisWidth,
+                      child: ListView.builder(
+                        controller: widget.axisScrollController,
+                        physics: _pinching
+                            ? const NeverScrollableScrollPhysics()
+                            : null,
+                        itemCount: lanes.length,
+                        itemExtent: rowHeight,
+                        itemBuilder: (context, index) => _PreviewLaneLabelRow(
+                            lane: lanes[index], index: index),
+                      ),
+                    ),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        controller: widget.trackHorizontalScrollController,
+                        physics: _pinching
+                            ? const NeverScrollableScrollPhysics()
+                            : null,
+                        scrollDirection: Axis.horizontal,
+                        child: SizedBox(
+                          width: contentWidth,
+                          child: Stack(
+                            children: [
+                              Positioned.fill(
+                                child: CustomPaint(
+                                  painter: _TimeGridPainter(
+                                    durationMs: widget.durationMs,
+                                    pxPerMs: pxPerMs,
+                                    leftPad: leftPad,
+                                    height: lanes.length * rowHeight,
+                                  ),
+                                ),
+                              ),
+                              ListView.builder(
+                                controller: widget.trackScrollController,
+                                physics: _pinching
+                                    ? const NeverScrollableScrollPhysics()
+                                    : null,
+                                itemCount: lanes.length,
+                                itemExtent: rowHeight,
+                                itemBuilder: (context, index) =>
+                                    _PreviewLaneRow(
+                                  lane: lanes[index],
+                                  laneIndex: index,
+                                  rowHeight: rowHeight,
+                                  leftPad: leftPad,
+                                  pxPerMs: pxPerMs,
+                                  selected: widget.selected,
+                                  onSelectedChanged: widget.onSelectedChanged,
+                                  onMoveSegment: widget.onMoveSegment,
+                                ),
+                              ),
+                              if (showNeedle)
+                                _NeedleOverlay(
+                                  lanes: lanes,
+                                  selected: selected,
+                                  leftPad: leftPad,
+                                  pxPerMs: pxPerMs,
+                                  contentHeight: lanes.length * rowHeight,
+                                  onSelectedChanged: widget.onSelectedChanged,
+                                  onMoveSegment: widget.onMoveSegment,
+                                  onResizeDownUp: widget.onResizeDownUp,
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -300,7 +378,8 @@ class _PreviewTimeline extends StatelessWidget {
         final token = normalizeMacroInputToken(btn);
         return 'g:${normalizeGamepadButtonCode(token)}';
       case 'gamepad_axis':
-        final axisId = normalizeMacroInputToken(e.data['axisId']?.toString() ?? '');
+        final axisId =
+            normalizeMacroInputToken(e.data['axisId']?.toString() ?? '');
         return 'ga:$axisId';
       case 'joystick':
         return 'j:virtual';
@@ -341,7 +420,9 @@ class _PreviewLaneRow extends StatelessWidget {
     required this.rowHeight,
     required this.leftPad,
     required this.pxPerMs,
-    required this.onTapEntry,
+    required this.selected,
+    required this.onSelectedChanged,
+    required this.onMoveSegment,
   });
 
   final _PreviewLane lane;
@@ -349,7 +430,9 @@ class _PreviewLaneRow extends StatelessWidget {
   final double rowHeight;
   final double leftPad;
   final double pxPerMs;
-  final ValueChanged<String> onTapEntry;
+  final _SelectedSegment? selected;
+  final ValueChanged<_SelectedSegment?> onSelectedChanged;
+  final void Function(List<String> entryIds, int deltaMs) onMoveSegment;
 
   @override
   Widget build(BuildContext context) {
@@ -369,19 +452,13 @@ class _PreviewLaneRow extends StatelessWidget {
               top: (rowHeight - 24) / 2,
               width: ((seg.endMs - seg.startMs) * pxPerMs).clamp(6.0, 99999.0),
               height: 24,
-              child: GestureDetector(
-                onTap: () => onTapEntry(seg.entryIds.first),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: _EntryRow._accentForType(seg.type)
-                        .withValues(alpha: 0.22),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: _EntryRow._accentForType(seg.type)
-                          .withValues(alpha: 0.28),
-                    ),
-                  ),
-                ),
+              child: _SegmentDraggable(
+                pxPerMs: pxPerMs,
+                segment: seg,
+                lane: lane,
+                selected: selected,
+                onSelectedChanged: onSelectedChanged,
+                onMoveSegment: onMoveSegment,
               ),
             ),
         ],
@@ -394,12 +471,10 @@ class _PreviewLaneLabelRow extends StatelessWidget {
   const _PreviewLaneLabelRow({
     required this.lane,
     required this.index,
-    required this.onTapEntry,
   });
 
   final _PreviewLane lane;
   final int index;
-  final ValueChanged<String> onTapEntry;
 
   @override
   Widget build(BuildContext context) {
@@ -410,7 +485,7 @@ class _PreviewLaneLabelRow extends StatelessWidget {
         color: bg,
         border: Border(
           top: BorderSide(color: Colors.white.withValues(alpha: 0.04)),
-          right: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
+          // right: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
         ),
       ),
       child: Padding(
@@ -450,6 +525,252 @@ class _PreviewLaneLabelRow extends StatelessWidget {
   }
 }
 
+class _NeedleOverlay extends StatefulWidget {
+  const _NeedleOverlay({
+    required this.lanes,
+    required this.selected,
+    required this.leftPad,
+    required this.pxPerMs,
+    required this.contentHeight,
+    required this.onSelectedChanged,
+    required this.onMoveSegment,
+    required this.onResizeDownUp,
+  });
+
+  final List<_PreviewLane> lanes;
+  final _SelectedSegment selected;
+  final double leftPad;
+  final double pxPerMs;
+  final double contentHeight;
+  final ValueChanged<_SelectedSegment?> onSelectedChanged;
+  final void Function(List<String> entryIds, int deltaMs) onMoveSegment;
+  final void Function(
+    String downId,
+    String upId, {
+    required int deltaStartMs,
+    required int deltaEndMs,
+  }) onResizeDownUp;
+
+  @override
+  State<_NeedleOverlay> createState() => _NeedleOverlayState();
+}
+
+class _NeedleOverlayState extends State<_NeedleOverlay> {
+  double _startResidDx = 0;
+  double _endResidDx = 0;
+
+  int _consumeStartDx(double dx) {
+    _startResidDx += dx;
+    final unit = widget.pxPerMs;
+    if (unit <= 0) return 0;
+    final deltaMs = (_startResidDx / unit).truncate();
+    if (deltaMs != 0) _startResidDx -= deltaMs * unit;
+    return deltaMs;
+  }
+
+  int _consumeEndDx(double dx) {
+    _endResidDx += dx;
+    final unit = widget.pxPerMs;
+    if (unit <= 0) return 0;
+    final deltaMs = (_endResidDx / unit).truncate();
+    if (deltaMs != 0) _endResidDx -= deltaMs * unit;
+    return deltaMs;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = widget.selected;
+    final startX = widget.leftPad + s.startMs * widget.pxPerMs;
+    final endX = widget.leftPad + s.endMs * widget.pxPerMs;
+    final canResize = s.entryIds.length == 2;
+
+    Widget needle({
+      required double x,
+      required bool isStart,
+    }) {
+      return Positioned(
+        left: x - 16,
+        top: 0,
+        width: 32,
+        height: widget.contentHeight,
+        child: GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onHorizontalDragUpdate: (d) {
+            final deltaMs = isStart
+                ? _consumeStartDx(d.delta.dx)
+                : _consumeEndDx(d.delta.dx);
+            if (deltaMs == 0) return;
+
+            if (canResize) {
+              widget.onResizeDownUp(
+                s.entryIds.first,
+                s.entryIds.last,
+                deltaStartMs: isStart ? deltaMs : 0,
+                deltaEndMs: isStart ? 0 : deltaMs,
+              );
+            } else {
+              if (isStart) {
+                widget.onMoveSegment(s.entryIds, deltaMs);
+              } else {
+                final nextEnd =
+                    (s.endMs + deltaMs).clamp(s.startMs, 999999).toInt();
+                widget.onSelectedChanged(
+                  _SelectedSegment(
+                    id: s.id,
+                    laneKey: s.laneKey,
+                    type: s.type,
+                    startMs: s.startMs,
+                    endMs: nextEnd,
+                    entryIds: s.entryIds,
+                  ),
+                );
+              }
+            }
+          },
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: Align(
+                  alignment: Alignment.center,
+                  child: Container(
+                    width: 2,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.22),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Container(
+                    width: 14,
+                    height: 14,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(7),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.18),
+                      ),
+                    ),
+                    child: Icon(
+                      isStart ? Icons.arrow_left : Icons.arrow_right,
+                      size: 12,
+                      color: Colors.white.withValues(alpha: 0.65),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return IgnorePointer(
+      ignoring: false,
+      child: Stack(
+        children: [
+          needle(x: startX, isStart: true),
+          needle(x: endX, isStart: false),
+        ],
+      ),
+    );
+  }
+}
+
+class _SegmentDraggable extends StatefulWidget {
+  const _SegmentDraggable({
+    required this.pxPerMs,
+    required this.segment,
+    required this.lane,
+    required this.selected,
+    required this.onSelectedChanged,
+    required this.onMoveSegment,
+  });
+
+  final double pxPerMs;
+  final _PreviewSegment segment;
+  final _PreviewLane lane;
+  final _SelectedSegment? selected;
+  final ValueChanged<_SelectedSegment?> onSelectedChanged;
+  final void Function(List<String> entryIds, int deltaMs) onMoveSegment;
+
+  @override
+  State<_SegmentDraggable> createState() => _SegmentDraggableState();
+}
+
+class _SegmentDraggableState extends State<_SegmentDraggable> {
+  double _bodyResidDx = 0;
+
+  bool get _isSelected {
+    final s = widget.selected;
+    if (s == null) return false;
+    return s.id == widget.segment.entryIds.first &&
+        s.laneKey == widget.lane.key;
+  }
+
+  _SelectedSegment _asSelected() => _SelectedSegment(
+        id: widget.segment.entryIds.first,
+        laneKey: widget.lane.key,
+        type: widget.lane.type,
+        startMs: widget.segment.startMs,
+        endMs: widget.segment.endMs,
+        entryIds: widget.segment.entryIds,
+      );
+
+  int _consumeBodyDx(double dx) {
+    _bodyResidDx += dx;
+    final unit = widget.pxPerMs;
+    if (unit <= 0) return 0;
+    final deltaMs = (_bodyResidDx / unit).truncate();
+    if (deltaMs != 0) {
+      _bodyResidDx -= deltaMs * unit;
+    }
+    return deltaMs;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = _isSelected;
+
+    final baseBorderColor = selected
+        ? Colors.white.withValues(alpha: 0.32)
+        : _EntryRow._accentForType(widget.segment.type).withValues(alpha: 0.28);
+    final baseFillColor = selected
+        ? _EntryRow._accentForType(widget.segment.type).withValues(alpha: 0.30)
+        : _EntryRow._accentForType(widget.segment.type).withValues(alpha: 0.22);
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => widget.onSelectedChanged(_asSelected()),
+      onHorizontalDragUpdate: (d) {
+        if (!selected) widget.onSelectedChanged(_asSelected());
+        final deltaMs = _consumeBodyDx(d.delta.dx);
+        if (deltaMs != 0) {
+          widget.onMoveSegment(widget.segment.entryIds, deltaMs);
+        }
+      },
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                color: baseFillColor,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: baseBorderColor),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _TimeRulerPainter extends CustomPainter {
   _TimeRulerPainter({
     required this.durationMs,
@@ -462,14 +783,6 @@ class _TimeRulerPainter extends CustomPainter {
   final double pxPerMs;
   final double leftPad;
   final double height;
-
-  int _pickStepMs() {
-    const candidates = [50, 100, 200, 500, 1000, 2000, 5000, 10000];
-    for (final s in candidates) {
-      if (s * pxPerMs >= 46) return s;
-    }
-    return 10000;
-  }
 
   String _fmt(int ms) {
     if (ms < 1000) return '${ms}ms';
@@ -487,8 +800,8 @@ class _TimeRulerPainter extends CustomPainter {
       ..color = Colors.white.withValues(alpha: 0.20)
       ..strokeWidth = 1;
 
-    final step = _pickStepMs();
-    final majorEvery = step * 5;
+    const step = 100;
+    const majorEvery = 500;
 
     for (int t = 0; t <= durationMs; t += step) {
       final x = leftPad + t * pxPerMs;
@@ -503,7 +816,7 @@ class _TimeRulerPainter extends CustomPainter {
             text: _fmt(t),
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.55),
-              fontSize: 11,
+              fontSize: 10,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -536,14 +849,6 @@ class _TimeGridPainter extends CustomPainter {
   final double leftPad;
   final double height;
 
-  int _pickStepMs() {
-    const candidates = [50, 100, 200, 500, 1000, 2000, 5000, 10000];
-    for (final s in candidates) {
-      if (s * pxPerMs >= 46) return s;
-    }
-    return 10000;
-  }
-
   @override
   void paint(Canvas canvas, Size size) {
     final paintMinor = Paint()
@@ -553,8 +858,8 @@ class _TimeGridPainter extends CustomPainter {
       ..color = Colors.white.withValues(alpha: 0.08)
       ..strokeWidth = 1;
 
-    final step = _pickStepMs();
-    final majorEvery = step * 5;
+    const step = 100;
+    const majorEvery = 500;
 
     for (int t = 0; t <= durationMs; t += step) {
       final x = leftPad + t * pxPerMs;

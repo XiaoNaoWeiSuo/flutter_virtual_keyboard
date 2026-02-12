@@ -210,11 +210,11 @@ Widget _keycap(
   final minW = (size * 1.25).clamp(18.0, 34.0);
   return Container(
     constraints: BoxConstraints(minWidth: minW, minHeight: h),
-    padding: const EdgeInsets.symmetric(horizontal: 6),
+    // padding: const EdgeInsets.symmetric(horizontal: 6),
     alignment: Alignment.center,
     decoration: BoxDecoration(
       color: Colors.white.withValues(alpha: 0.06),
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(999),
       border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
     ),
     child: Text(
@@ -224,7 +224,7 @@ Widget _keycap(
       softWrap: false,
       style: TextStyle(
         color: color ?? Colors.white,
-        fontSize: (size * 0.70).clamp(10.0, 14.0),
+        fontSize: (size * 0.50).clamp(7.0, 14.0),
         fontWeight: FontWeight.w900,
         height: 1.0,
         letterSpacing: -0.2,

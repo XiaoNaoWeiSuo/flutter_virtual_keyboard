@@ -459,7 +459,7 @@ class _TinyHoldButtonState extends State<_TinyHoldButton> {
         ),
         child: Icon(
           widget.icon,
-          size: 16,
+          size: 12,
           color: Colors.white.withValues(alpha: 0.65),
         ),
       ),

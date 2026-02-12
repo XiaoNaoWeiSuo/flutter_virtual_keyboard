@@ -5,6 +5,9 @@ class _TopBubble extends StatelessWidget {
     required this.labelController,
     required this.view,
     required this.onViewChanged,
+    required this.selectedSegment,
+    required this.onDeleteSelectedSegment,
+    required this.onAdjustAxisWindowSpan,
     required this.canFinish,
     required this.onFinish,
   });
@@ -12,19 +15,38 @@ class _TopBubble extends StatelessWidget {
   final TextEditingController labelController;
   final _MacroSuiteView view;
   final ValueChanged<_MacroSuiteView> onViewChanged;
+  final _SelectedSegment? selectedSegment;
+  final VoidCallback? onDeleteSelectedSegment;
+  final ValueChanged<int> onAdjustAxisWindowSpan;
   final bool canFinish;
   final VoidCallback onFinish;
 
   @override
   Widget build(BuildContext context) {
+    final selected = selectedSegment;
+    final isPreview = view == _MacroSuiteView.preview;
+    final isAxisWindow = isPreview &&
+        selected != null &&
+        (selected.type == 'joystick' || selected.type == 'gamepad_axis') &&
+        selected.entryIds.isEmpty;
+
+    String fmt(int ms) {
+      if (ms < 1000) return '${ms}ms';
+      final s = ms / 1000.0;
+      final str = s.toStringAsFixed(s >= 10 ? 0 : 1);
+      return '${str}s';
+    }
+
+    final axisSpanMs =
+        isAxisWindow ? (selected.endMs - selected.startMs).abs() : 0;
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         SizedBox(
-          width: 220,
+          width: 160,
           child: TextField(
             controller: labelController,
-            style: const TextStyle(color: Colors.white),
+            style: const TextStyle(color: Colors.white, fontSize: 14),
             decoration: InputDecoration(
               hintText: '按键名称',
               labelText: '宏名称',
@@ -42,6 +64,49 @@ class _TopBubble extends StatelessWidget {
           ),
         ),
         _ViewTabs(value: view, onChanged: onViewChanged),
+        if (isAxisWindow)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.04),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '宽度 ${fmt(axisSpanMs)}',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.70),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                IconButton(
+                  onPressed: () => onAdjustAxisWindowSpan(-100),
+                  icon: const Icon(Icons.remove, color: Colors.white70, size: 14),
+                  visualDensity: VisualDensity.compact,
+                  tooltip: '缩小选区',
+                ),
+                IconButton(
+                  onPressed: () => onAdjustAxisWindowSpan(100),
+                  icon: const Icon(Icons.add, color: Colors.white70, size: 14),
+                  visualDensity: VisualDensity.compact,
+                  tooltip: '扩大选区',
+                ),
+              ],
+            ),
+          ),
+        if (isPreview && selected != null) ...[
+          IconButton(
+            onPressed: onDeleteSelectedSegment,
+            icon: const Icon(Icons.delete_outline, color: Colors.white70),
+            visualDensity: VisualDensity.compact,
+            tooltip: '删除时间条',
+          ),
+        ],
         FilledButton(
           onPressed: canFinish ? onFinish : null,
           child: const Text('添加到布局'),
@@ -94,9 +159,9 @@ class _ViewTabs extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        tab('默认', _MacroSuiteView.defaultView),
+        tab('元数据', _MacroSuiteView.defaultView),
         const SizedBox(width: 8),
-        tab('预览', _MacroSuiteView.preview),
+        tab('时间轨道', _MacroSuiteView.preview),
       ],
     );
   }
@@ -133,7 +198,8 @@ class _ToolPanel extends StatelessWidget {
     final toggleTooltip = collapsed ? '展开' : '折叠';
     return Container(
       color: const Color(0xFF0B0B0C),
-      padding: EdgeInsets.only(left: MediaQuery.paddingOf(context).left, top: 10),
+      padding:
+          EdgeInsets.only(left: MediaQuery.paddingOf(context).left, top: 10),
       child: Column(
         children: [
           if (collapsed)
@@ -327,7 +393,7 @@ class _ToolTile extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Icon(icon, color: Colors.white70, size: 18),
-              Text(title, style: const TextStyle(color: Colors.white)),
+              Text(title, style: const TextStyle(color: Colors.white,fontSize: 14)),
             ],
           ),
         ),
@@ -366,9 +432,8 @@ class _ToolIconTile extends StatelessWidget {
             height: 42,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: enabled
-                  ? const Color(0xFF1C1C1E)
-                  : const Color(0xFF141416),
+              color:
+                  enabled ? const Color(0xFF1C1C1E) : const Color(0xFF141416),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
             ),
