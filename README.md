@@ -19,6 +19,7 @@
 - 输入：强类型 `InputBinding`（键盘/手柄），支持注册自定义按钮
 - 样式：`ControlStyle`（shape/border/radius/shadow/image/label 等）
 - 编辑器：运行时拖拽/缩放/透明度；保存为最小化 `VirtualControllerState` JSON
+- 主题：`VirtualControlTheme`（可按规则批量覆盖 style/layout/label/config）
 
 ---
 
@@ -28,7 +29,7 @@ Add this to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  virtual_gamepad_pro: ^0.2.4
+  virtual_gamepad_pro: ^0.3.0
 ```
 
 ---
@@ -73,7 +74,8 @@ class GamePage extends StatelessWidget {
           label: 'LS',
           layout: ControlLayout(x: 0.1, y: 0.6, width: 0.2, height: 0.2), 
           trigger: TriggerType.hold,
-          stickType: 'left',
+          mode: JoystickMode.gamepad,
+          stickType: GamepadStickId.left,
         ),
         VirtualButton(
           id: 'btn_a',
@@ -101,9 +103,9 @@ class GamePage extends StatelessWidget {
               if (event is GamepadAxisInputEvent) {
                 print('Axis ${event.axisId}: ${event.x}, ${event.y}');
               } else if (event is GamepadButtonInputEvent) {
-                print('Button ${event.button}: ${event.isPressed}');
+                print('Button ${event.button}: ${event.isDown}');
               } else if (event is KeyboardInputEvent) {
-                print('Key ${event.key}: ${event.isPressed}');
+                print('Key ${event.key}: ${event.isDown}');
               }
             },
           ),
@@ -113,6 +115,14 @@ class GamePage extends StatelessWidget {
   }
 }
 ```
+
+---
+
+## Example（pub 展示用示例）
+
+仓库内置了一个完整的示例 App（包含布局管理 + 运行时编辑器 + 宏录制/编辑入口），发布到 pub 后会在页面的 Example 选项卡展示：
+- 目录：`example/`
+- 入口：`example/lib/main.dart`
 
 ### 2) 强类型绑定（InputBinding）
 
@@ -171,6 +181,31 @@ final style = ControlStyle(
 - 新增宏按键的默认尺寸已调整为：`width: 0.06`, `height: 0.10`（更窄的药丸形态，便于在界面上排布）。
 - 该默认尺寸在调色板原型、工厂方法以及“宏套件添加”入口已统一；已存在布局不受影响（尺寸保存在用户状态中）。
 - 如需自定义，直接修改 `VirtualMacroButton.layout` 的 `width/height`。
+
+#### 主题（VirtualControlTheme）
+
+你可以在渲染时对控件做“装饰”（覆盖 style/layout/label/config），而不修改原始 definition/state：
+
+```dart
+final theme = RuleBasedVirtualControlTheme(
+  base: const DefaultVirtualControlTheme(),
+  post: [
+    ControlRule(
+      when: ControlMatchers.gamepadButtonId(GamepadButtonId.a),
+      transform: (c) => (c as VirtualButton).copyWith(
+        style: const ControlStyle(color: Colors.green),
+      ),
+    ),
+  ],
+);
+
+VirtualControllerOverlay(
+  definition: definition,
+  state: state,
+  theme: theme,
+  onInputEvent: onInputEvent,
+);
+```
 
 ---
 

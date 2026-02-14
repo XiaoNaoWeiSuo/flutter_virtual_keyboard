@@ -123,7 +123,7 @@ class _SlotCardState extends State<_SlotCard> {
         widget.slot.entries.any((e) => e.id == widget.selectedId);
 
     final expanded = widget.expanded || hasSelected;
-    final width = expanded ? 240.0 : 170.0;
+    final width = expanded ? 180.0 : 150.0;
     final entryCount = widget.slot.entries.length;
 
     return AnimatedContainer(
@@ -225,7 +225,6 @@ class _SlotCardState extends State<_SlotCard> {
                           selectedId: widget.selectedId,
                           onTapEntry: widget.onTapEntry,
                           onDeleteEntry: widget.onDeleteEntry,
-                          onDuplicateEntry: widget.onDuplicateEntry,
                         )
                       : _SlotEntryPreview(
                           key: ValueKey('${widget.slotKey}_collapsed'),
@@ -252,14 +251,12 @@ class _SlotEntryList extends StatelessWidget {
     required this.selectedId,
     required this.onTapEntry,
     required this.onDeleteEntry,
-    required this.onDuplicateEntry,
   });
 
   final List<_StepEntry> entries;
   final String? selectedId;
   final ValueChanged<String> onTapEntry;
   final ValueChanged<String> onDeleteEntry;
-  final ValueChanged<String> onDuplicateEntry;
 
   @override
   Widget build(BuildContext context) {
@@ -276,7 +273,6 @@ class _SlotEntryList extends StatelessWidget {
               subtitle: _formatSubtitle(e.event.type, e.event.data),
               onTap: () => onTapEntry(e.id),
               onDelete: () => onDeleteEntry(e.id),
-              onDuplicate: () => onDuplicateEntry(e.id),
             ),
             const SizedBox(height: 8),
           ],
@@ -319,7 +315,6 @@ class _SlotEntryPreview extends StatelessWidget {
               subtitle: null,
               onTap: () => onTapEntry(e.id),
               onDelete: () => onDeleteEntry(e.id),
-              onDuplicate: () => onDuplicateEntry(e.id),
               compact: true,
             ),
             const SizedBox(height: 8),
@@ -475,7 +470,6 @@ class _EntryRow extends StatelessWidget {
     required this.subtitle,
     required this.onTap,
     required this.onDelete,
-    required this.onDuplicate,
     this.compact = false,
   });
 
@@ -485,7 +479,6 @@ class _EntryRow extends StatelessWidget {
   final String? subtitle;
   final VoidCallback onTap;
   final VoidCallback onDelete;
-  final VoidCallback onDuplicate;
   final bool compact;
 
   static IconData _iconForType(String type) {
@@ -583,13 +576,6 @@ class _EntryRow extends StatelessWidget {
                 ],
               ),
             ),
-            if (!compact)
-              IconButton(
-                onPressed: onDuplicate,
-                icon: const Icon(Icons.copy, color: Colors.white30),
-                visualDensity: VisualDensity.compact,
-                tooltip: '复制',
-              ),
             IconButton(
               onPressed: onDelete,
               icon: const Icon(Icons.close, color: Colors.white30),
@@ -616,13 +602,13 @@ String _formatTitle(String type, Map<String, dynamic> data) {
       return isDown ? '按下 $label' : '抬起 $label';
     case 'mouse_button':
       final isDown = data['isDown'] == true;
-      final label =
-          macroInputGlyphLabel(type: 'mouse_button', data: {'button': data['button']});
+      final label = macroInputGlyphLabel(
+          type: 'mouse_button', data: {'button': data['button']});
       return isDown ? '按下 $label' : '抬起 $label';
     case 'gamepad_button':
       final isDown = data['isDown'] == true;
-      final label =
-          macroInputGlyphLabel(type: 'gamepad_button', data: {'button': data['button']});
+      final label = macroInputGlyphLabel(
+          type: 'gamepad_button', data: {'button': data['button']});
       return isDown ? '按下 $label' : '抬起 $label';
     case 'mouse_wheel':
       final dir = data['direction']?.toString() ?? '?';
@@ -631,8 +617,8 @@ String _formatTitle(String type, Map<String, dynamic> data) {
     case 'mouse_wheel_vector':
       return '滚轮';
     case 'gamepad_axis':
-      final label =
-          macroInputGlyphLabel(type: 'gamepad_axis', data: {'axisId': data['axisId']});
+      final label = macroInputGlyphLabel(
+          type: 'gamepad_axis', data: {'axisId': data['axisId']});
       return '摇杆 $label';
     case 'joystick':
       return '摇杆（虚拟）';

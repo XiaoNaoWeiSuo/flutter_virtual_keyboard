@@ -119,7 +119,10 @@ class _EditorDrawerState extends State<_EditorDrawer> {
     final pairedUpAtMs = widget.initialPairedUpAtMs;
     if (_type != 'delay') {
       _timeMode = _SignalTimeMode.range;
-      if (pairedUpAtMs != null) {
+      if (widget.isNew) {
+        _endMs = _startMs;
+        _openEnded = false;
+      } else if (pairedUpAtMs != null) {
         _endMs = pairedUpAtMs.clamp(0, 999999);
         _openEnded = false;
       } else {
@@ -183,8 +186,7 @@ class _EditorDrawerState extends State<_EditorDrawer> {
         widget.onSave(
           _EditorSavePayload(
             events: [down],
-            removePairedUp:
-                !widget.isNew && widget.initialPairedUpAtMs != null,
+            removePairedUp: !widget.isNew && widget.initialPairedUpAtMs != null,
           ),
         );
         return;
@@ -199,7 +201,10 @@ class _EditorDrawerState extends State<_EditorDrawer> {
     }
 
     final downAtMs = atMs;
-    final downData = <String, dynamic>{...data, 'isDown': _pair ? true : _isDown};
+    final downData = <String, dynamic>{
+      ...data,
+      'isDown': _pair ? true : _isDown
+    };
     final first =
         RecordedTimelineEvent(atMs: downAtMs, type: type, data: downData);
     if (!_pair) {
@@ -277,7 +282,8 @@ class _EditorDrawerState extends State<_EditorDrawer> {
     final showSignalMode = type != 'delay';
     final canRange = showSignalMode;
     final endMs = _openEnded ? null : _endMs;
-    final durationMs = endMs == null ? null : (endMs - _startMs).clamp(0, 999999);
+    final durationMs =
+        endMs == null ? null : (endMs - _startMs).clamp(0, 999999);
 
     return Column(
       children: [
@@ -320,8 +326,10 @@ class _EditorDrawerState extends State<_EditorDrawer> {
                 if (canRange)
                   SegmentedButton<_SignalTimeMode>(
                     segments: const [
-                      ButtonSegment(value: _SignalTimeMode.range, label: Text('区间')),
-                      ButtonSegment(value: _SignalTimeMode.single, label: Text('单点')),
+                      ButtonSegment(
+                          value: _SignalTimeMode.range, label: Text('区间')),
+                      ButtonSegment(
+                          value: _SignalTimeMode.single, label: Text('单点')),
                     ],
                     selected: {_timeMode},
                     onSelectionChanged: (v) =>
@@ -634,7 +642,6 @@ class _MsStepper extends StatefulWidget {
 
 class _MsStepperState extends State<_MsStepper> {
   Timer? _holdTimer;
-  int _holdTicks = 0;
 
   @override
   void dispose() {
@@ -644,19 +651,11 @@ class _MsStepperState extends State<_MsStepper> {
 
   void _startHold(int direction) {
     _holdTimer?.cancel();
-    _holdTicks = 0;
     widget.onChanged(
       (widget.value + direction * 1).clamp(widget.min, _MsStepper._max),
     );
     _holdTimer = Timer.periodic(const Duration(milliseconds: 80), (_) {
-      _holdTicks++;
-      final step = _holdTicks < 10
-          ? 1
-          : _holdTicks < 25
-              ? 10
-              : _holdTicks < 50
-                  ? 50
-                  : 100;
+      const step = 1;
       widget.onChanged(
         (widget.value + direction * step).clamp(widget.min, _MsStepper._max),
       );
@@ -696,7 +695,8 @@ class _MsStepperState extends State<_MsStepper> {
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.06),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+                  border:
+                      Border.all(color: Colors.white.withValues(alpha: 0.10)),
                 ),
                 child: const Icon(Icons.remove, color: Colors.white70),
               ),
@@ -709,7 +709,8 @@ class _MsStepperState extends State<_MsStepper> {
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.04),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                  border:
+                      Border.all(color: Colors.white.withValues(alpha: 0.08)),
                 ),
                 child: Text(
                   '${widget.value}ms',
@@ -734,7 +735,8 @@ class _MsStepperState extends State<_MsStepper> {
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.06),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+                  border:
+                      Border.all(color: Colors.white.withValues(alpha: 0.10)),
                 ),
                 child: const Icon(Icons.add, color: Colors.white70),
               ),

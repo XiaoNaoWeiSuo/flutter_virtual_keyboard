@@ -243,16 +243,23 @@ class _VirtualDpadWidgetState extends State<VirtualDpadWidget> {
     final binding = widget.control.directions[direction];
     if (binding == null) return;
     if (binding is KeyboardBinding) {
-      final key = binding.key.code.trim();
-      if (key.isEmpty) return;
-      widget.onInputEvent(
-          isDown ? KeyboardInputEvent.down(key) : KeyboardInputEvent.up(key));
+      final key = binding.key.normalized();
+      if (key.code.trim().isEmpty) return;
+      widget.onInputEvent(isDown
+          ? KeyboardInputEvent.down(key)
+          : KeyboardInputEvent.up(key));
       return;
     }
-    final button = binding.code.trim();
-    if (button.isEmpty) return;
-    widget
-        .onInputEvent(GamepadButtonInputEvent(button: button, isDown: isDown));
+    if (binding is GamepadButtonBinding) {
+      widget.onInputEvent(
+        GamepadButtonInputEvent(button: binding.button, isDown: isDown),
+      );
+      return;
+    }
+    final raw = binding.code.trim();
+    if (raw.isEmpty) return;
+    final parsed = GamepadButtonId.parse(raw);
+    widget.onInputEvent(GamepadButtonInputEvent(button: parsed, isDown: isDown));
   }
 }
 

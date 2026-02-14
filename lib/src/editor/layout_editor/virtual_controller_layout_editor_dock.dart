@@ -40,6 +40,7 @@ class _DockPanel extends StatelessWidget {
     required this.onRemove,
     required this.onSizeChanged,
     required this.onOpacityChanged,
+    required this.onDragDelta,
     required this.collapsed,
   });
 
@@ -82,15 +83,20 @@ class _DockPanel extends StatelessWidget {
   final VoidCallback onRemove;
   final ValueChanged<double> onSizeChanged;
   final ValueChanged<double> onOpacityChanged;
+  final ValueChanged<Offset> onDragDelta;
   final bool collapsed;
 
   @override
   Widget build(BuildContext context) {
     if (collapsed) {
-      return _DockPill(
-        onClose: onClose,
-        onExpand: onToggleCollapsed,
-        dirty: canSave,
+      return GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onPanUpdate: (d) => onDragDelta(d.delta),
+        child: _DockPill(
+          onClose: onClose,
+          onExpand: onToggleCollapsed,
+          dirty: canSave,
+        ),
       );
     }
     return ConstrainedBox(
@@ -123,6 +129,8 @@ class _DockPanel extends StatelessWidget {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
                     child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onPanUpdate: (d) => onDragDelta(d.delta),
                       onTap: canRename ? onRename : null,
                       child: Text(
                         title,
@@ -277,12 +285,14 @@ class _DockPanel extends StatelessWidget {
               TextButton(
                   onPressed: onEditMacro,
                   child: const Row(
-                    
+                    mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      Icon(Icons.movie_creation, size: 16, color: Colors.white),
+                      Icon(Icons.movie_creation,
+                          size: 16, color: Colors.lightBlueAccent),
                       SizedBox(width: 4),
                       Text('编辑宏序列',
-                          style: TextStyle(fontSize: 12, color: Colors.white)),
+                          style: TextStyle(
+                              fontSize: 12, color: Colors.lightBlueAccent)),
                     ],
                   ))
           ],

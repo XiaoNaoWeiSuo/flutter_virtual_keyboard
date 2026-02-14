@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../models/controls/virtual_split_mouse.dart';
+import '../../models/identifiers.dart';
 import '../../models/input_event.dart';
 import '../shared/control_utils.dart';
 import '../../models/style/control_style.dart';
@@ -33,20 +34,20 @@ class _VirtualSplitMouseWidgetState extends State<VirtualSplitMouseWidget> {
     if (isLeft) {
       if (!_isLeftPressed) {
         setState(() => _isLeftPressed = true);
-        _sendEvent('left', true);
+        _sendEvent(MouseButtonId.left, true);
       }
       if (_isRightPressed) {
         setState(() => _isRightPressed = false);
-        _sendEvent('right', false);
+        _sendEvent(MouseButtonId.right, false);
       }
     } else {
       if (!_isRightPressed) {
         setState(() => _isRightPressed = true);
-        _sendEvent('right', true);
+        _sendEvent(MouseButtonId.right, true);
       }
       if (_isLeftPressed) {
         setState(() => _isLeftPressed = false);
-        _sendEvent('left', false);
+        _sendEvent(MouseButtonId.left, false);
       }
     }
   }
@@ -54,15 +55,15 @@ class _VirtualSplitMouseWidgetState extends State<VirtualSplitMouseWidget> {
   void _handleUp() {
     if (_isLeftPressed) {
       setState(() => _isLeftPressed = false);
-      _sendEvent('left', false);
+      _sendEvent(MouseButtonId.left, false);
     }
     if (_isRightPressed) {
       setState(() => _isRightPressed = false);
-      _sendEvent('right', false);
+      _sendEvent(MouseButtonId.right, false);
     }
   }
 
-  void _sendEvent(String button, bool isDown) {
+  void _sendEvent(MouseButtonId button, bool isDown) {
     triggerFeedback(widget.control.feedback, isDown);
     widget.onInputEvent(MouseButtonInputEvent(button: button, isDown: isDown));
   }

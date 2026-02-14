@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/virtual_controller_models.dart';
+import '../models/identifiers.dart';
 
 class EditorControlFactory {
   static const ControlStyle _wasdStickStyle = ControlStyle(
@@ -71,14 +72,13 @@ class EditorControlFactory {
     );
   }
 
-  static VirtualMouseButton mouseButton(String button,
-      {ControlLayout? layout}) {
+  static VirtualMouseButton mouseButton(MouseButtonId button, {ControlLayout? layout}) {
     return VirtualMouseButton(
-      id: 'mouse_${button}_${DateTime.now().microsecondsSinceEpoch}',
-      label: button,
+      id: 'mouse_${button.code}_${DateTime.now().microsecondsSinceEpoch}',
+      label: button.code,
       layout: layout ??
           const ControlLayout(x: 0.75, y: 0.65, width: 0.1, height: 0.15),
-      trigger: button == 'right' ? TriggerType.hold : TriggerType.tap,
+      trigger: button == MouseButtonId.right ? TriggerType.hold : TriggerType.tap,
       button: button,
       config: {},
     );
@@ -95,11 +95,10 @@ class EditorControlFactory {
     );
   }
 
-  static VirtualMouseWheel mouseWheel(String direction,
-      {ControlLayout? layout}) {
+  static VirtualMouseWheel mouseWheel(MouseWheelDirection direction, {ControlLayout? layout}) {
     return VirtualMouseWheel(
-      id: 'wheel_${direction}_${DateTime.now().microsecondsSinceEpoch}',
-      label: direction == 'up' ? '滑轮上' : '滑轮下',
+      id: 'wheel_${direction.code}_${DateTime.now().microsecondsSinceEpoch}',
+      label: direction == MouseWheelDirection.up ? '滑轮上' : '滑轮下',
       layout: layout ??
           const ControlLayout(x: 0.8, y: 0.5, width: 0.1, height: 0.15),
       trigger: TriggerType.tap,
@@ -159,8 +158,8 @@ class EditorControlFactory {
       layout: layout ??
           const ControlLayout(x: 0.1, y: 0.6, width: 0.18, height: 0.28),
       trigger: TriggerType.hold,
-      mode: 'gamepad',
-      stickType: 'left',
+      mode: JoystickMode.gamepad,
+      stickType: GamepadStickId.left,
       style: _gamepadLeftStickStyle,
       feedback: const ControlFeedback(vibration: true, vibrationType: 'medium'),
       config: const {
@@ -179,8 +178,8 @@ class EditorControlFactory {
       layout: layout ??
           const ControlLayout(x: 0.1, y: 0.6, width: 0.18, height: 0.28),
       trigger: TriggerType.hold,
-      mode: 'gamepad',
-      stickType: 'right',
+      mode: JoystickMode.gamepad,
+      stickType: GamepadStickId.right,
       style: _gamepadRightStickStyle,
       feedback: const ControlFeedback(vibration: true, vibrationType: 'medium'),
       config: const {

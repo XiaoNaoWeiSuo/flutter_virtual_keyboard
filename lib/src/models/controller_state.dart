@@ -60,6 +60,7 @@ class VirtualControllerState {
           .whereType<Map>()
           .map((c) =>
               VirtualControlState.fromJson(Map<String, dynamic>.from(c)))
+          .where((c) => c.config['deleted'] != true)
           .toList(),
       name: json['name'] as String?,
     );

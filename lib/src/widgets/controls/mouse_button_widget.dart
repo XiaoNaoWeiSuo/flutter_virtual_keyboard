@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/controls/virtual_mouse_button.dart';
+import '../../models/identifiers.dart';
 import '../../models/input_event.dart';
 import '../shared/control_container.dart';
 import '../shared/control_label.dart';
@@ -62,7 +63,7 @@ class _VirtualMouseButtonWidgetState extends State<VirtualMouseButtonWidget> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
-                  widget.control.button == 'left'
+                  widget.control.button == MouseButtonId.left
                       ? Icons.mouse_outlined
                       : Icons.mouse,
                   color: Colors.white,

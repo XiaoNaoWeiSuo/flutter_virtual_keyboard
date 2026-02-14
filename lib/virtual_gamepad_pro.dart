@@ -5,6 +5,7 @@
 library virtual_gamepad_pro;
 
 export 'src/models/input_event.dart';
+export 'src/models/identifiers.dart';
 export 'src/models/virtual_controller_models.dart';
 export 'src/macro/recorded_timeline_event.dart';
 export 'src/widgets/virtual_controller_overlay.dart';
@@ -26,6 +27,12 @@ export 'src/widgets/controls/scroll_stick_widget.dart';
 export 'src/widgets/controls/split_mouse_widget.dart';
 export 'src/utils/style_codec.dart';
 export 'src/utils/control_geometry.dart';
+export 'src/utils/layout_state_protocol.dart';
+export 'src/utils/control_clone.dart';
+export 'src/utils/layout_transform.dart';
+export 'src/theme/virtual_control_theme.dart';
+export 'src/theme/control_matchers.dart';
+export 'src/theme/rule_based_theme.dart';
 export 'src/editor/resize_direction.dart';
 export 'src/editor/virtual_controller_layout_editor_canvas.dart';
 export 'src/editor/editor_palette_tab.dart';

@@ -110,6 +110,7 @@ class _VirtualControllerLayoutEditorState
 
   Size _lastCanvasSize = Size.zero;
   bool _dockCollapsed = false;
+  Offset _dockOffset = const Offset(25, 25);
 
   @override
   void initState() {
@@ -559,84 +560,98 @@ class _VirtualControllerLayoutEditorState
                                 ),
                               ),
                               Positioned(
-                                top: 0,
-                                left: 0,
-                                child: Padding(
-                                  padding: const EdgeInsets.all(25),
-                                  child: _DockPanel(
-                                    title: c.layout.name,
-                                    readOnly: widget.readOnly,
-                                    allowAddRemove: widget.allowAddRemove,
-                                    allowResize: widget.allowResize,
-                                    enabledTabs: widget.enabledPaletteTabs,
-                                    hasSelection: c.selectedControl != null,
-                                    isMacro:
-                                        c.selectedControl is VirtualMacroButton,
-                                    showStickClickToggle:
-                                        c.selectedControl is VirtualJoystick,
-                                    stickClickLabel: c.selectedControl
-                                            is VirtualJoystick
-                                        ? (((((c.selectedControl
-                                                                as VirtualJoystick)
-                                                            .config['stickType']
-                                                        as String?) ??
-                                                    (c.selectedControl
-                                                            as VirtualJoystick)
-                                                        .stickType) ==
-                                                'left')
-                                            ? 'LS摇杆重按'
-                                            : 'RS摇杆重按')
-                                        : '按键',
-                                    stickClickEnabled:
-                                        c.selectedStickClickEnabled,
-                                    onStickClickChanged:
-                                        c.setSelectedStickClickEnabled,
-                                    showStickLockToggle:
-                                        c.selectedControl is VirtualJoystick,
-                                    stickLockLabel:'摇杆锁定',
-                                    stickLockEnabled:
-                                        c.selectedStickLockEnabled,
-                                    onStickLockChanged:
-                                        c.setSelectedStickLockEnabled,
-                                    showDpad3dToggle:
-                                        c.selectedControl is VirtualDpad,
-                                    dpad3dEnabled: c.selectedDpad3dEnabled,
-                                    onDpad3dChanged: c.setSelectedDpad3dEnabled,
-                                    canRemove: c.canDeleteSelected,
-                                    canSave: c.isDirty && !widget.readOnly,
-                                    canRename:
-                                        widget.allowRename && !widget.readOnly,
-                                    sizeValue: c.selectedScale,
-                                    opacityValue: c.selectedOpacity,
-                                    onRename: _renameLayout,
-                                    onEditMacro: _editMacro,
-                                    onClose: () {
-                                      widget.onClose?.call();
-                                      Navigator.of(context).maybePop();
-                                    },
-                                    onSave: _save,
-                                    onToggleCollapsed: () => setState(
-                                      () => _dockCollapsed = !_dockCollapsed,
-                                    ),
-                                    onDeselect: () => c.selectControl(null),
-                                    onOpenKeyboard: () => _openPaletteFor(
-                                        VirtualControllerEditorPaletteTab
-                                            .keyboard),
-                                    onOpenMouse: () => _openPaletteFor(
-                                        VirtualControllerEditorPaletteTab
-                                            .mouseAndJoystick),
-                                    onOpenMacro: _openMacroSuite,
-                                    onOpenXbox: () => _openPaletteFor(
-                                        VirtualControllerEditorPaletteTab.xbox),
-                                    onOpenPs: () => _openPaletteFor(
-                                        VirtualControllerEditorPaletteTab.ps),
-                                    onReset: _confirmReset,
-                                    onRemove: c.deleteSelected,
-                                    onSizeChanged: (v) =>
-                                        c.setSelectedScale(v, _lastCanvasSize),
-                                    onOpacityChanged: c.setSelectedOpacity,
-                                    collapsed: _dockCollapsed,
+                                top: _dockOffset.dy,
+                                left: _dockOffset.dx,
+                                child: _DockPanel(
+                                  title: c.layout.name,
+                                  readOnly: widget.readOnly,
+                                  allowAddRemove: widget.allowAddRemove,
+                                  allowResize: widget.allowResize,
+                                  enabledTabs: widget.enabledPaletteTabs,
+                                  hasSelection: c.selectedControl != null,
+                                  isMacro:
+                                      c.selectedControl is VirtualMacroButton,
+                                  showStickClickToggle:
+                                      c.selectedControl is VirtualJoystick,
+                                  stickClickLabel: c.selectedControl
+                                          is VirtualJoystick
+                                      ? (((((c.selectedControl
+                                                              as VirtualJoystick)
+                                                          .config['stickType']
+                                                      as String?) ??
+                                                  (c.selectedControl
+                                                          as VirtualJoystick)
+                                                      .stickType) ==
+                                              'left')
+                                          ? 'LS摇杆重按'
+                                          : 'RS摇杆重按')
+                                      : '按键',
+                                  stickClickEnabled:
+                                      c.selectedStickClickEnabled,
+                                  onStickClickChanged:
+                                      c.setSelectedStickClickEnabled,
+                                  showStickLockToggle:
+                                      c.selectedControl is VirtualJoystick,
+                                  stickLockLabel: '摇杆锁定',
+                                  stickLockEnabled: c.selectedStickLockEnabled,
+                                  onStickLockChanged:
+                                      c.setSelectedStickLockEnabled,
+                                  showDpad3dToggle:
+                                      c.selectedControl is VirtualDpad,
+                                  dpad3dEnabled: c.selectedDpad3dEnabled,
+                                  onDpad3dChanged: c.setSelectedDpad3dEnabled,
+                                  canRemove: c.canDeleteSelected,
+                                  canSave: c.isDirty && !widget.readOnly,
+                                  canRename:
+                                      widget.allowRename && !widget.readOnly,
+                                  sizeValue: c.selectedScale,
+                                  opacityValue: c.selectedOpacity,
+                                  onRename: _renameLayout,
+                                  onEditMacro: _editMacro,
+                                  onClose: () {
+                                    widget.onClose?.call();
+                                    Navigator.of(context).maybePop();
+                                  },
+                                  onSave: _save,
+                                  onToggleCollapsed: () => setState(
+                                    () => _dockCollapsed = !_dockCollapsed,
                                   ),
+                                  onDeselect: () => c.selectControl(null),
+                                  onOpenKeyboard: () => _openPaletteFor(
+                                      VirtualControllerEditorPaletteTab
+                                          .keyboard),
+                                  onOpenMouse: () => _openPaletteFor(
+                                      VirtualControllerEditorPaletteTab
+                                          .mouseAndJoystick),
+                                  onOpenMacro: _openMacroSuite,
+                                  onOpenXbox: () => _openPaletteFor(
+                                      VirtualControllerEditorPaletteTab.xbox),
+                                  onOpenPs: () => _openPaletteFor(
+                                      VirtualControllerEditorPaletteTab.ps),
+                                  onReset: _confirmReset,
+                                  onRemove: c.deleteSelected,
+                                  onSizeChanged: (v) =>
+                                      c.setSelectedScale(v, _lastCanvasSize),
+                                  onOpacityChanged: c.setSelectedOpacity,
+                                  onDragDelta: (delta) {
+                                    final size = MediaQuery.sizeOf(context);
+                                    final insets =
+                                        MediaQuery.paddingOf(context);
+                                    setState(() {
+                                      final next = _dockOffset + delta;
+                                      final maxX =
+                                          (size.width - insets.right - 12)
+                                              .clamp(0.0, 999999.0);
+                                      final maxY =
+                                          (size.height - insets.bottom - 12)
+                                              .clamp(0.0, 999999.0);
+                                      _dockOffset = Offset(
+                                        next.dx.clamp(insets.left + 12, maxX),
+                                        next.dy.clamp(insets.top + 12, maxY),
+                                      );
+                                    });
+                                  },
+                                  collapsed: _dockCollapsed,
                                 ),
                               ),
                             ],

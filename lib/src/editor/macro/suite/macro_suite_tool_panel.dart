@@ -29,6 +29,7 @@ class _TopBubble extends StatelessWidget {
         selected != null &&
         (selected.type == 'joystick' || selected.type == 'gamepad_axis') &&
         selected.entryIds.isEmpty;
+    final isNormalBar = isPreview && selected != null && !isAxisWindow;
 
     String fmt(int ms) {
       if (ms < 1000) return '${ms}ms';
@@ -39,6 +40,8 @@ class _TopBubble extends StatelessWidget {
 
     final axisSpanMs =
         isAxisWindow ? (selected.endMs - selected.startMs).abs() : 0;
+    final normalSpanMs =
+        isNormalBar ? (selected.endMs - selected.startMs).abs() : 0;
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -64,6 +67,23 @@ class _TopBubble extends StatelessWidget {
           ),
         ),
         _ViewTabs(value: view, onChanged: onViewChanged),
+        if (isNormalBar)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.04),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+            ),
+            child: Text(
+              '宽度 ${fmt(normalSpanMs)}',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.70),
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
         if (isAxisWindow)
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8),

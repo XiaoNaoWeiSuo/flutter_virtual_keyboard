@@ -1,4 +1,6 @@
 import '../models/input_event.dart';
+import '../models/binding/binding.dart';
+import '../models/identifiers.dart';
 
 class RecordedInputEvent {
   const RecordedInputEvent({
@@ -36,9 +38,10 @@ class RecordedInputEvent {
         type: 'keyboard',
         delayMs: delayMs,
         data: {
-          'key': event.key,
+          'key': event.key.code,
           'isDown': event.isDown,
-          if (event.modifiers.isNotEmpty) 'modifiers': event.modifiers,
+          if (event.modifiers.isNotEmpty)
+            'modifiers': event.modifiers.map((m) => m.code).toList(),
         },
       );
     }
@@ -48,7 +51,7 @@ class RecordedInputEvent {
         type: 'mouse_button',
         delayMs: delayMs,
         data: {
-          'button': event.button,
+          'button': event.button.code,
           'isDown': event.isDown,
         },
       );
@@ -59,7 +62,7 @@ class RecordedInputEvent {
         type: 'mouse_wheel',
         delayMs: delayMs,
         data: {
-          'direction': event.direction,
+          'direction': event.direction.code,
           'delta': event.delta,
         },
       );
@@ -81,7 +84,7 @@ class RecordedInputEvent {
         type: 'gamepad_button',
         delayMs: delayMs,
         data: {
-          'button': event.button,
+          'button': event.button.code,
           'isDown': event.isDown,
         },
       );
@@ -92,7 +95,7 @@ class RecordedInputEvent {
         type: 'gamepad_axis',
         delayMs: delayMs,
         data: {
-          'axisId': event.axisId,
+          'axisId': event.axisId.code,
           'x': event.x,
           'y': event.y,
         },
@@ -106,7 +109,7 @@ class RecordedInputEvent {
         data: {
           'dx': event.dx,
           'dy': event.dy,
-          'activeKeys': event.activeKeys,
+          'activeKeys': event.activeKeys.map((k) => k.code).toList(),
         },
       );
     }
@@ -135,21 +138,32 @@ class RecordedInputEvent {
         final key = data['key'] as String?;
         final isDown = data['isDown'] as bool?;
         if (key == null || isDown == null) return null;
-        final modifiers =
-            List<String>.from(data['modifiers'] as List? ?? const []);
-        return KeyboardInputEvent(key: key, isDown: isDown, modifiers: modifiers);
+        final modifiersRaw = List<String>.from(data['modifiers'] as List? ?? const []);
+        final modifiers = modifiersRaw
+            .map((e) => KeyboardKey(e).normalized())
+            .where((k) => k.code.trim().isNotEmpty && k.code != 'null')
+            .toList(growable: false);
+        return KeyboardInputEvent(
+          key: KeyboardKey(key).normalized(),
+          isDown: isDown,
+          modifiers: modifiers,
+        );
 
       case 'mouse_button':
         final button = data['button'] as String?;
         final isDown = data['isDown'] as bool?;
         if (button == null || isDown == null) return null;
-        return MouseButtonInputEvent(button: button, isDown: isDown);
+        final parsed = MouseButtonId.tryParse(button);
+        if (parsed == null) return null;
+        return MouseButtonInputEvent(button: parsed, isDown: isDown);
 
       case 'mouse_wheel':
         final direction = data['direction'] as String?;
         final delta = (data['delta'] as num?)?.toInt();
         if (direction == null || delta == null) return null;
-        return MouseWheelInputEvent(direction: direction, delta: delta);
+        final parsed = MouseWheelDirection.tryParse(direction);
+        if (parsed == null) return null;
+        return MouseWheelInputEvent(direction: parsed, delta: delta);
 
       case 'mouse_wheel_vector':
         final dx = (data['dx'] as num?)?.toDouble();
@@ -161,21 +175,31 @@ class RecordedInputEvent {
         final button = data['button'] as String?;
         final isDown = data['isDown'] as bool?;
         if (button == null || isDown == null) return null;
-        return GamepadButtonInputEvent(button: button, isDown: isDown);
+        return GamepadButtonInputEvent(
+          button: GamepadButtonId.parse(button),
+          isDown: isDown,
+        );
 
       case 'gamepad_axis':
         final axisId = data['axisId'] as String?;
         final x = (data['x'] as num?)?.toDouble();
         final y = (data['y'] as num?)?.toDouble();
         if (axisId == null || x == null || y == null) return null;
-        return GamepadAxisInputEvent(axisId: axisId, x: x, y: y);
+        return GamepadAxisInputEvent(
+          axisId: GamepadStickId.parse(axisId),
+          x: x,
+          y: y,
+        );
 
       case 'joystick':
         final dx = (data['dx'] as num?)?.toDouble();
         final dy = (data['dy'] as num?)?.toDouble();
         if (dx == null || dy == null) return null;
-        final activeKeys =
-            List<String>.from(data['activeKeys'] as List? ?? const []);
+        final rawKeys = List<String>.from(data['activeKeys'] as List? ?? const []);
+        final activeKeys = rawKeys
+            .map((e) => KeyboardKey(e).normalized())
+            .where((k) => k.code.trim().isNotEmpty && k.code != 'null')
+            .toList(growable: false);
         return JoystickInputEvent(dx: dx, dy: dy, activeKeys: activeKeys);
 
       case 'custom':
@@ -191,4 +215,3 @@ class RecordedInputEvent {
     }
   }
 }
-

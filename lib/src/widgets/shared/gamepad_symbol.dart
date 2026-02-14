@@ -22,102 +22,104 @@ class GamepadSymbol extends StatelessWidget {
     // Normalize input
     final normId = id.toLowerCase();
     final normLabel = label.toLowerCase();
+    final token = _tokenFromId(normId);
+    final effective = normLabel.trim().isNotEmpty ? normLabel.trim() : token;
 
     // Xbox Logic
-    if (normLabel == 'a' || normId.endsWith('_a')) {
+    if (effective == 'a' || normId.endsWith('_a')) {
       return _buildText('A', const Color(0xFF4CAF50)); // Green
     }
-    if (normLabel == 'b' || normId.endsWith('_b')) {
+    if (effective == 'b' || normId.endsWith('_b')) {
       return _buildText('B', const Color(0xFFF44336)); // Red
     }
-    if (normLabel == 'y' || normId.endsWith('_y')) {
+    if (effective == 'y' || normId.endsWith('_y')) {
       return _buildText('Y', const Color(0xFFFFC107)); // Amber
     }
     // X is ambiguous (Xbox X or PS Cross).
     // If ID explicitly says 'cross', treat as PS Cross.
     // If ID says 'x', treat as Xbox X.
-    if (normId.contains('cross')) {
+    if (normId.contains('cross') || effective == 'cross') {
       return _buildShape(_ShapeType.cross, const Color(0xFF2196F3)); // Blue
     }
-    if (normLabel == 'x' || normId.endsWith('_x')) {
+    if (effective == 'x' || normId.endsWith('_x')) {
       return _buildText('X', const Color(0xFF2196F3)); // Blue
     }
 
     // Xbox Shoulder Buttons
-    if (normLabel == 'lb' || normId.endsWith('_lb')) {
+    if (effective == 'lb' || normId.endsWith('_lb')) {
       return _buildText('LB', Colors.white, scale: 0.45);
     }
-    if (normLabel == 'rb' || normId.endsWith('_rb')) {
+    if (effective == 'rb' || normId.endsWith('_rb')) {
       return _buildText('RB', Colors.white, scale: 0.45);
     }
-    if (normLabel == 'lt' || normId.endsWith('_lt')) {
+    if (effective == 'lt' || normId.endsWith('_lt')) {
       return _buildText('LT', Colors.white, scale: 0.45);
     }
-    if (normLabel == 'rt' || normId.endsWith('_rt')) {
+    if (effective == 'rt' || normId.endsWith('_rt')) {
       return _buildText('RT', Colors.white, scale: 0.45);
     }
 
     // PlayStation Logic
-    if (normId.contains('triangle') || normLabel == 'triangle') {
+    if (normId.contains('triangle') || effective == 'triangle') {
       return _buildShape(_ShapeType.triangle, const Color(0xFF4CAF50)); // Green
     }
-    if (normId.contains('circle') || normLabel == 'circle') {
+    if (normId.contains('circle') || effective == 'circle') {
       return _buildShape(_ShapeType.circle, const Color(0xFFF44336)); // Red
     }
-    if (normId.contains('square') || normLabel == 'square') {
+    if (normId.contains('square') || effective == 'square') {
       return _buildShape(_ShapeType.square, const Color(0xFFE91E63)); // Pink
     }
 
     // PlayStation Shoulder Buttons
-    if (normLabel == 'l1' || normId.endsWith('_l1')) {
+    if (effective == 'l1' || normId.endsWith('_l1')) {
       return _buildText('L1', Colors.white, scale: 0.45);
     }
-    if (normLabel == 'r1' || normId.endsWith('_r1')) {
+    if (effective == 'r1' || normId.endsWith('_r1')) {
       return _buildText('R1', Colors.white, scale: 0.45);
     }
-    if (normLabel == 'l2' || normId.endsWith('_l2')) {
+    if (effective == 'l2' || normId.endsWith('_l2')) {
       return _buildText('L2', Colors.white, scale: 0.45);
     }
-    if (normLabel == 'r2' || normId.endsWith('_r2')) {
+    if (effective == 'r2' || normId.endsWith('_r2')) {
       return _buildText('R2', Colors.white, scale: 0.45);
     }
 
     // System Buttons
-    if (normLabel == 'menu' ||
+    if (effective == 'menu' ||
         normId.endsWith('_menu') ||
-        normLabel == 'start' ||
+        effective == 'start' ||
         normId.endsWith('_start') ||
-        normLabel == 'options') {
+        effective == 'options') {
       return _buildIcon(Icons.menu, Colors.white);
     }
-    if (normLabel == 'view' ||
+    if (effective == 'view' ||
         normId.endsWith('_view') ||
-        normLabel == 'back' ||
+        effective == 'back' ||
         normId.endsWith('_back')) {
       return _buildIcon(Icons.filter_none, Colors.white,
           sizeScale: 0.5); // 2 overlapping squares
     }
-    if (normLabel == 'share' || normId.endsWith('_share')) {
+    if (effective == 'share' || normId.endsWith('_share')) {
       return _buildIcon(Icons.share, Colors.white, sizeScale: 0.5);
     }
-    if (normLabel == 'home' ||
+    if (effective == 'home' ||
         normId.endsWith('_home') ||
-        normLabel == 'guide' ||
-        normLabel == 'ps') {
+        effective == 'guide' ||
+        effective == 'ps') {
       // Generic Home Icon
       return _buildIcon(Icons.radio_button_checked, Colors.white);
     }
 
     // Stick Buttons
-    if (normLabel == 'l3' ||
+    if (effective == 'l3' ||
         normId.endsWith('_l3') ||
-        normLabel == 'ls' ||
+        effective == 'ls' ||
         normId.endsWith('_ls')) {
       return _buildText('LS', Colors.white, scale: 0.45);
     }
-    if (normLabel == 'r3' ||
+    if (effective == 'r3' ||
         normId.endsWith('_r3') ||
-        normLabel == 'rs' ||
+        effective == 'rs' ||
         normId.endsWith('_rs')) {
       return _buildText('RS', Colors.white, scale: 0.45);
     }
@@ -194,6 +196,22 @@ class GamepadSymbol extends StatelessWidget {
       ),
     );
   }
+}
+
+String _tokenFromId(String normId) {
+  final lower = normId.trim().toLowerCase();
+  if (lower.startsWith('btn_')) {
+    final parts = lower.split('_');
+    if (parts.length >= 2) {
+      final token = parts[1].trim();
+      if (token.isNotEmpty) return token;
+    }
+  }
+  final idx = lower.lastIndexOf('_');
+  if (idx <= 0 || idx >= lower.length - 1) return '';
+  final tail = lower.substring(idx + 1).trim();
+  final isNumeric = int.tryParse(tail) != null;
+  return isNumeric ? '' : tail;
 }
 
 enum _ShapeType { triangle, square, circle, cross }

@@ -1,4 +1,5 @@
 import '../models/virtual_controller_models.dart';
+import '../models/identifiers.dart';
 
 VirtualControl? dynamicControlFromId(
   String id,
@@ -33,12 +34,12 @@ VirtualControl? dynamicControlFromId(
   if (id.startsWith('mouse_')) {
     final parts = id.split('_');
     if (parts.length >= 2) {
-      final button = parts[1];
+      final button = MouseButtonId.tryParse(parts[1]) ?? MouseButtonId.left;
       return VirtualMouseButton(
         id: id,
-        label: button == 'middle' ? 'M' : button,
+        label: button == MouseButtonId.middle ? 'M' : button.code,
         layout: layout,
-        trigger: button == 'right' ? TriggerType.hold : TriggerType.tap,
+        trigger: button == MouseButtonId.right ? TriggerType.hold : TriggerType.tap,
         button: button,
         config: const {},
       );
@@ -47,10 +48,11 @@ VirtualControl? dynamicControlFromId(
   if (id.startsWith('wheel_')) {
     final parts = id.split('_');
     if (parts.length >= 2) {
-      final direction = parts[1];
+      final direction =
+          MouseWheelDirection.tryParse(parts[1]) ?? MouseWheelDirection.up;
       return VirtualMouseWheel(
         id: id,
-        label: direction == 'up' ? '滑轮上' : '滑轮下',
+        label: direction == MouseWheelDirection.up ? '滑轮上' : '滑轮下',
         layout: layout,
         trigger: TriggerType.tap,
         direction: direction,
@@ -145,8 +147,8 @@ VirtualControl? dynamicControlFromId(
       label: 'LS',
       layout: layout,
       trigger: TriggerType.hold,
-      mode: 'gamepad',
-      stickType: 'left',
+      mode: JoystickMode.gamepad,
+      stickType: GamepadStickId.left,
       config: config,
     );
   }
@@ -167,8 +169,8 @@ VirtualControl? dynamicControlFromId(
       label: 'RS',
       layout: layout,
       trigger: TriggerType.hold,
-      mode: 'gamepad',
-      stickType: 'right',
+      mode: JoystickMode.gamepad,
+      stickType: GamepadStickId.right,
       config: config,
     );
   }
@@ -197,4 +199,3 @@ VirtualControl? dynamicControlFromId(
   }
   return null;
 }
-

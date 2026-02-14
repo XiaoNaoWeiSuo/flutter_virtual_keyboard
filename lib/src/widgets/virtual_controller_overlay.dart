@@ -21,6 +21,7 @@ import 'controls/custom_widget.dart';
 import 'controls/macro_button_widget.dart';
 import 'shared/default_control_widget.dart';
 import '../utils/control_geometry.dart';
+import '../theme/virtual_control_theme.dart';
 import 'system_ui_mode_scope.dart';
 
 /// Overlay widget that renders all virtual controls.
@@ -34,6 +35,7 @@ class VirtualControllerOverlay extends StatefulWidget {
     this.opacity = 0.5,
     this.showLabels = true,
     this.immersive = true,
+    this.theme = const DefaultVirtualControlTheme(),
   });
 
   final VirtualControllerLayout definition;
@@ -50,6 +52,8 @@ class VirtualControllerOverlay extends StatefulWidget {
   final bool showLabels;
 
   final bool immersive;
+
+  final VirtualControlTheme theme;
 
   @override
   State<VirtualControllerOverlay> createState() =>
@@ -117,12 +121,12 @@ class _VirtualControllerOverlayState extends State<VirtualControllerOverlay> {
       final s = stateById[control.id];
       final layout = s?.layout ?? control.layout;
       final opacity = (s?.opacity ?? 1.0).clamp(0.0, 1.0);
-      final effectiveControl = _applyStateToControl(control, s);
+      final effectiveControl = widget.theme.decorate(_applyStateToControl(control, s));
       if (control is VirtualKeyCluster) {
         final keys = (effectiveControl as VirtualKeyCluster).expandToKeys(layout);
         for (final k in keys) {
           resolved.add(_ResolvedControl(
-            control: k,
+            control: widget.theme.decorate(k),
             layout: k.layout,
             opacity: opacity,
           ));
@@ -140,7 +144,7 @@ class _VirtualControllerOverlayState extends State<VirtualControllerOverlay> {
       if (definitionIds.contains(s.id)) continue;
       final dynamic = dynamicControlFromId(s.id, s.layout, runtimeDefaults: true);
       if (dynamic == null) continue;
-      final effectiveDynamic = _applyStateToControl(dynamic, s);
+      final effectiveDynamic = widget.theme.decorate(_applyStateToControl(dynamic, s));
       resolved.add(_ResolvedControl(
         control: effectiveDynamic,
         layout: s.layout,

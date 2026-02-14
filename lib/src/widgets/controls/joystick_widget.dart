@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import '../../models/binding/binding.dart';
 import '../../models/controls/virtual_joystick.dart';
+import '../../models/identifiers.dart';
 import '../../models/input_event.dart';
 import '../shared/control_utils.dart';
 
@@ -26,7 +28,7 @@ class VirtualJoystickWidget extends StatefulWidget {
 
 class _VirtualJoystickWidgetState extends State<VirtualJoystickWidget> {
   Offset _stickPosition = Offset.zero;
-  Set<String> _activeKeys = {};
+  Set<KeyboardKey> _activeKeys = {};
 
   // Interaction State
   bool _isStickClickDown = false;
@@ -216,7 +218,7 @@ class _VirtualJoystickWidgetState extends State<VirtualJoystickWidget> {
     _currentMagnitude = 0.0;
     _showStickClickHint = false;
 
-    final useGamepad = widget.control.mode == 'gamepad';
+    final useGamepad = widget.control.mode == JoystickMode.gamepad;
 
     if (useGamepad) {
       // Use explicit stickType
@@ -233,7 +235,7 @@ class _VirtualJoystickWidgetState extends State<VirtualJoystickWidget> {
   }
 
   void _updateStick(Offset localPosition) {
-    final useGamepad = widget.control.mode == 'gamepad';
+    final useGamepad = widget.control.mode == JoystickMode.gamepad;
     final stickClickEnabled =
         widget.control.config['stickClickEnabled'] == true;
     final stickLockEnabled =
@@ -359,14 +361,14 @@ class _VirtualJoystickWidgetState extends State<VirtualJoystickWidget> {
       return;
     }
 
-    final newActiveKeys = <String>{};
+    final newActiveKeys = <KeyboardKey>{};
     final deadzone = widget.control.deadzone;
     final keys = widget.control.keys;
 
-    if (dy < -deadzone && keys.isNotEmpty) newActiveKeys.add(keys[0].code);
-    if (dx < -deadzone && keys.length > 1) newActiveKeys.add(keys[1].code);
-    if (dy > deadzone && keys.length > 2) newActiveKeys.add(keys[2].code);
-    if (dx > deadzone && keys.length > 3) newActiveKeys.add(keys[3].code);
+    if (dy < -deadzone && keys.isNotEmpty) newActiveKeys.add(keys[0]);
+    if (dx < -deadzone && keys.length > 1) newActiveKeys.add(keys[1]);
+    if (dy > deadzone && keys.length > 2) newActiveKeys.add(keys[2]);
+    if (dx > deadzone && keys.length > 3) newActiveKeys.add(keys[3]);
 
     for (final key in _activeKeys.difference(newActiveKeys)) {
       widget.onInputEvent(KeyboardInputEvent.up(key));
@@ -378,7 +380,7 @@ class _VirtualJoystickWidgetState extends State<VirtualJoystickWidget> {
   }
 
   void _emitAxis({
-    required String stickId,
+    required GamepadStickId stickId,
     required double x,
     required double y,
   }) {
@@ -400,7 +402,7 @@ class _VirtualJoystickWidgetState extends State<VirtualJoystickWidget> {
   }
 
   void _emitStickClick(bool down) {
-    if (widget.control.mode != 'gamepad') return;
+    if (widget.control.mode != JoystickMode.gamepad) return;
     if (_isStickClickDown == down) return;
     setState(() {
       _isStickClickDown = down;
@@ -409,9 +411,13 @@ class _VirtualJoystickWidgetState extends State<VirtualJoystickWidget> {
       }
     });
     final stickId = widget.control.stickType;
-    final buttonId = stickId == 'right' ? 'r3' : 'l3';
+    final buttonId =
+        stickId == GamepadStickId.right ? GamepadButtonId.r3 : GamepadButtonId.l3;
     widget.onInputEvent(
-        down ? GamepadButtonInputEvent.down(buttonId) : GamepadButtonInputEvent.up(buttonId));
+      down
+          ? GamepadButtonInputEvent.down(buttonId)
+          : GamepadButtonInputEvent.up(buttonId),
+    );
   }
 }
 

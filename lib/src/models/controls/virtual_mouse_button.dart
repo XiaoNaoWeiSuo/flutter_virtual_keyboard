@@ -1,6 +1,7 @@
 import '../style/control_layout.dart';
 import '../style/control_style.dart';
 import '../style/control_feedback.dart';
+import '../identifiers.dart';
 import 'virtual_control.dart';
 
 /// Virtual Mouse Button Control.
@@ -29,7 +30,10 @@ class VirtualMouseButton extends VirtualControl {
       layout: ControlLayout.fromJson(json['layout'] as Map<String, dynamic>),
       trigger: parseTriggerType(json['trigger'] as String?),
       config: config,
-      button: config['button'] as String? ?? 'left',
+      button: config['button'] is String
+          ? (MouseButtonId.tryParse(config['button'] as String) ??
+              MouseButtonId.left)
+          : MouseButtonId.left,
       clickType: config['clickType'] as String? ?? 'single',
       style: json['style'] != null
           ? ControlStyle.fromJson(json['style'] as Map<String, dynamic>)
@@ -41,7 +45,7 @@ class VirtualMouseButton extends VirtualControl {
   }
 
   /// The mouse button (left, right, middle).
-  final String button;
+  final MouseButtonId button;
 
   /// The click type (single, double, hold).
   final String clickType;
@@ -55,7 +59,7 @@ class VirtualMouseButton extends VirtualControl {
         'trigger': triggerTypeToString(trigger),
         'config': {
           ...config,
-          'button': button,
+          'button': button.code,
           'clickType': clickType,
         },
         if (style != null) 'style': style!.toJson(),

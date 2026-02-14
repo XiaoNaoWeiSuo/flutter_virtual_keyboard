@@ -1,6 +1,7 @@
 import '../style/control_layout.dart';
 import '../style/control_style.dart';
 import '../style/control_feedback.dart';
+import '../identifiers.dart';
 import 'virtual_control.dart';
 
 /// Virtual Mouse Wheel Control.
@@ -29,7 +30,10 @@ class VirtualMouseWheel extends VirtualControl {
       layout: ControlLayout.fromJson(json['layout'] as Map<String, dynamic>),
       trigger: parseTriggerType(json['trigger'] as String?),
       config: config,
-      direction: config['direction'] as String? ?? 'up',
+      direction: config['direction'] is String
+          ? (MouseWheelDirection.tryParse(config['direction'] as String) ??
+              MouseWheelDirection.up)
+          : MouseWheelDirection.up,
       step: config['step'] as int? ?? 3,
       style: json['style'] != null
           ? ControlStyle.fromJson(json['style'] as Map<String, dynamic>)
@@ -41,7 +45,7 @@ class VirtualMouseWheel extends VirtualControl {
   }
 
   /// The scroll direction (up, down).
-  final String direction;
+  final MouseWheelDirection direction;
 
   /// The number of lines/steps to scroll.
   final int step;
@@ -55,7 +59,7 @@ class VirtualMouseWheel extends VirtualControl {
         'trigger': triggerTypeToString(trigger),
         'config': {
           ...config,
-          'direction': direction,
+          'direction': direction.code,
           'step': step,
         },
         if (style != null) 'style': style!.toJson(),

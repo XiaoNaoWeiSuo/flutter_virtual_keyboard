@@ -28,7 +28,7 @@ List<VirtualControl> _prototypesFor(VirtualControllerEditorPaletteTab tab) {
           label: 'M',
           layout: dummy,
           trigger: TriggerType.tap,
-          button: 'middle',
+          button: MouseButtonId.middle,
           config: const {},
         ),
         VirtualSplitMouse(
@@ -180,8 +180,8 @@ List<VirtualControl> _prototypesFor(VirtualControllerEditorPaletteTab tab) {
           label: 'LS',
           layout: dummy,
           trigger: TriggerType.hold,
-          mode: 'gamepad',
-          stickType: 'left',
+          mode: JoystickMode.gamepad,
+          stickType: GamepadStickId.left,
           style: const ControlStyle(
             shape: BoxShape.circle,
             borderColor: Color(0xFFFFCC00),
@@ -203,8 +203,8 @@ List<VirtualControl> _prototypesFor(VirtualControllerEditorPaletteTab tab) {
           label: 'RS',
           layout: dummy,
           trigger: TriggerType.hold,
-          mode: 'gamepad',
-          stickType: 'right',
+          mode: JoystickMode.gamepad,
+          stickType: GamepadStickId.right,
           style: const ControlStyle(
             shape: BoxShape.circle,
             borderColor: Color(0xFFFF7A45),

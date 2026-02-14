@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show SystemUiMode;
 
@@ -62,10 +63,10 @@ class _MacroSuitePageState extends State<MacroSuitePage> {
   bool _loadingInit = false;
   int _openDownCount = 0;
   _MacroSuiteView _view = _MacroSuiteView.defaultView;
-  double _previewZoom = 1.0;
+  double _previewZoom = 2.0;
   _SelectedSegment? _selectedSegment;
   final Map<String, List<_AxisWarpOp>> _axisWarpOpsByLaneKey = {};
-  int _axisSelectionSpanMs = 1400;
+  int _axisSelectionSpanMs = 500;
   bool _toolCollapsed = false;
 
   String? _editingId;
@@ -428,12 +429,11 @@ class _MacroSuitePageState extends State<MacroSuitePage> {
                                           selected: _selectedSegment,
                                           onSelectedChanged: (s) =>
                                               setState(() => _selectedSegment = s),
-                                          onMoveSegment: _moveSegmentEntries,
                                           onResizeDownUp: _resizeDownUp,
                                           onAdjustAxisWarp: _adjustAxisWarp,
                                           onCommitAxisWarp: _commitAxisWarp,
                                           onZoomChanged: (z) => setState(() {
-                                            _previewZoom = z.clamp(0.4, 4.0);
+                                            _previewZoom = z.clamp(0.4, 20.0);
                                           }),
                                         ),
                                       ],
@@ -1162,96 +1162,6 @@ class _MacroSuitePageState extends State<MacroSuitePage> {
         applyAxisWarp: false,
         axisWarpId: selected.axisWarpId,
       );
-    });
-  }
-
-  void _moveSegmentEntries(List<String> entryIds, int deltaMs) {
-    if (entryIds.isEmpty || deltaMs == 0) return;
-    final idSet = entryIds.toSet();
-    int clampDelta() {
-      var minAt = 999999;
-      var maxAt = 0;
-      var found = false;
-      String? identity;
-      for (final e in _steps) {
-        if (!idSet.contains(e.id)) continue;
-        found = true;
-        final t = e.event.atMs.clamp(0, 999999).toInt();
-        if (t < minAt) minAt = t;
-        if (t > maxAt) maxAt = t;
-        identity ??= _identityForEvent(e.event);
-      }
-      if (!found) return 0;
-      var minDelta = 0 - minAt;
-      var maxDelta = 999999 - maxAt;
-
-      if (identity != null &&
-          identity.trim().isNotEmpty &&
-          entryIds.length == 2) {
-        final segs = _segmentsForIdentity(identity);
-        final me = segs
-            .where((s) => idSet.contains(s.downId) && idSet.contains(s.upId))
-            .toList(growable: false);
-        if (me.length == 1) {
-          final current = me.single;
-          final prev = segs
-              .where((s) => s.endMs <= current.startMs && s != current)
-              .fold<({String downId, String upId, int startMs, int endMs})?>(
-                  null, (best, s) {
-            if (best == null) return s;
-            return s.endMs > best.endMs ? s : best;
-          });
-          final next = segs
-              .where((s) => s.startMs >= current.endMs && s != current)
-              .fold<({String downId, String upId, int startMs, int endMs})?>(
-                  null, (best, s) {
-            if (best == null) return s;
-            return s.startMs < best.startMs ? s : best;
-          });
-
-          if (prev != null) {
-            minDelta =
-                ((prev.endMs + 1) - minAt).clamp(minDelta, 999999).toInt();
-          }
-          if (next != null) {
-            maxDelta =
-                ((next.startMs - 1) - maxAt).clamp(-999999, maxDelta).toInt();
-          }
-        }
-      }
-
-      return deltaMs.clamp(minDelta, maxDelta).toInt();
-    }
-
-    final applied = clampDelta();
-    if (applied == 0) return;
-    setState(() {
-      for (final e in _steps) {
-        if (!idSet.contains(e.id)) continue;
-        e.event = RecordedTimelineEvent(
-          atMs: (e.event.atMs + applied).clamp(0, 999999).toInt(),
-          type: e.event.type,
-          data: {...e.event.data},
-        );
-      }
-      final selected = _selectedSegment;
-      if (selected != null &&
-          selected.entryIds.isNotEmpty &&
-          selected.entryIds.every(idSet.contains)) {
-        final start = (selected.startMs + applied).clamp(0, 999999).toInt();
-        final end = (selected.endMs + applied).clamp(start, 999999).toInt();
-        _selectedSegment = _SelectedSegment(
-          id: selected.id,
-          laneKey: selected.laneKey,
-          type: selected.type,
-          startMs: start,
-          endMs: end,
-          entryIds: selected.entryIds,
-        );
-      }
-      _sortSteps();
-      _sanitizeSteps();
-      _rebuildSlots();
     });
   }
 

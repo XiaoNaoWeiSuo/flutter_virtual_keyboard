@@ -3,10 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../macro/macro_recorder_controller.dart';
+import '../../models/identifiers.dart';
+import '../../models/binding/binding.dart' as vcbind;
 import '../../models/input_event.dart';
 import '../../models/virtual_controller_models.dart';
-import '../system_ui_mode_scope.dart';
 import '../virtual_controller_overlay.dart';
+import '../system_ui_mode_scope.dart';
 
 class VirtualControllerMacroRecordingSession extends StatefulWidget {
   const VirtualControllerMacroRecordingSession({
@@ -38,6 +40,7 @@ class _VirtualControllerMacroRecordingSessionState
   final _recorder = MacroRecorderController();
   bool _mixHardwareInput = true;
   int _lastMouseButtons = 0;
+  Offset _dockOffset = const Offset(12, 12);
 
   @override
   void initState() {
@@ -134,8 +137,8 @@ class _VirtualControllerMacroRecordingSessionState
                 ),
               ),
               Positioned(
-                left: 12,
-                top: 12,
+                left: _dockOffset.dx,
+                top: _dockOffset.dy,
                 child: SafeArea(
                   bottom: false,
                   child: AnimatedBuilder(
@@ -153,6 +156,21 @@ class _VirtualControllerMacroRecordingSessionState
                         onFinish: () => Navigator.of(context).pop(
                           _recorder.toJsonList(),
                         ),
+                        onDragDelta: (delta) {
+                          final size = MediaQuery.sizeOf(context);
+                          final insets = MediaQuery.paddingOf(context);
+                          setState(() {
+                            final next = _dockOffset + delta;
+                            final maxX = (size.width - insets.right - 12)
+                                .clamp(0.0, 999999.0);
+                            final maxY = (size.height - insets.bottom - 12)
+                                .clamp(0.0, 999999.0);
+                            _dockOffset = Offset(
+                              next.dx.clamp(insets.left + 12, maxX),
+                              next.dy.clamp(insets.top + 12, maxY),
+                            );
+                          });
+                        },
                       );
                     },
                   ),
@@ -188,6 +206,7 @@ class _Dock extends StatelessWidget {
     required this.onStop,
     required this.onClear,
     required this.onFinish,
+    required this.onDragDelta,
   });
 
   final bool isRecording;
@@ -198,6 +217,7 @@ class _Dock extends StatelessWidget {
   final VoidCallback onStop;
   final VoidCallback onClear;
   final VoidCallback onFinish;
+  final ValueChanged<Offset> onDragDelta;
 
   @override
   Widget build(BuildContext context) {
@@ -210,46 +230,51 @@ class _Dock extends StatelessWidget {
           border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
         ),
         child: Padding(
-          padding:  const EdgeInsets.fromLTRB(10,10,10,5),
+          padding: const EdgeInsets.fromLTRB(10, 10, 10, 5),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Row(
-                children: [
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: isRecording ? Colors.redAccent : Colors.white24,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      isRecording ? '录制中...' : '录制',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onPanUpdate: (d) => onDragDelta(d.delta),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: isRecording ? Colors.redAccent : Colors.white24,
+                        borderRadius: BorderRadius.circular(999),
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                  Text(
-                    '$steps 步',
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        isRecording ? '录制中...' : '录制',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
-                ],
+                    Text(
+                      '$steps 步',
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
               ),
               // const SizedBox(height: 10),
-              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   _DockButton(
                     onPressed: onToggleMixHardware,
@@ -317,16 +342,16 @@ class _DockButton extends StatelessWidget {
         minimumSize: const Size(0, 34),
       ),
       icon: Icon(icon, size: 16),
-      label: Text(label, style: const TextStyle(fontSize: 12,height: 1)),
+      label: Text(label, style: const TextStyle(fontSize: 12, height: 1)),
     );
   }
 }
 
-List<String> _mouseButtonsFromMask(int mask) {
-  final buttons = <String>[];
-  if ((mask & kPrimaryMouseButton) != 0) buttons.add('left');
-  if ((mask & kSecondaryMouseButton) != 0) buttons.add('right');
-  if ((mask & kMiddleMouseButton) != 0) buttons.add('middle');
+List<MouseButtonId> _mouseButtonsFromMask(int mask) {
+  final buttons = <MouseButtonId>[];
+  if ((mask & kPrimaryMouseButton) != 0) buttons.add(MouseButtonId.left);
+  if ((mask & kSecondaryMouseButton) != 0) buttons.add(MouseButtonId.right);
+  if ((mask & kMiddleMouseButton) != 0) buttons.add(MouseButtonId.middle);
   return buttons;
 }
 
@@ -347,11 +372,11 @@ InputEvent? _inputEventFromHardwareKeyEvent(KeyEvent event) {
   );
 }
 
-List<String> _modifierCodes({LogicalKeyboardKey? excluding}) {
+List<vcbind.KeyboardKey> _modifierCodes({LogicalKeyboardKey? excluding}) {
   final pressed = HardwareKeyboard.instance.logicalKeysPressed;
   bool has(LogicalKeyboardKey k) => pressed.contains(k) && excluding != k;
 
-  final codes = <String>[];
+  final codes = <vcbind.KeyboardKey>[];
   final ctrl = has(LogicalKeyboardKey.controlLeft) ||
       has(LogicalKeyboardKey.controlRight);
   final shift =
@@ -361,51 +386,52 @@ List<String> _modifierCodes({LogicalKeyboardKey? excluding}) {
   final meta =
       has(LogicalKeyboardKey.metaLeft) || has(LogicalKeyboardKey.metaRight);
 
-  if (ctrl) codes.add('Ctrl');
-  if (shift) codes.add('Shift');
-  if (alt) codes.add('Alt');
-  if (meta) codes.add('Meta');
+  if (ctrl) codes.add(vcbind.KeyboardKeys.controlLeft);
+  if (shift) codes.add(vcbind.KeyboardKeys.shiftLeft);
+  if (alt) codes.add(vcbind.KeyboardKeys.altLeft);
+  if (meta) codes.add(vcbind.KeyboardKeys.metaLeft);
   return codes;
 }
 
-String? _keyCodeFromLogicalKey(LogicalKeyboardKey key) {
-  if (key == LogicalKeyboardKey.escape) return 'Esc';
+vcbind.KeyboardKey? _keyCodeFromLogicalKey(LogicalKeyboardKey key) {
+  if (key == LogicalKeyboardKey.escape) return vcbind.KeyboardKeys.escape;
   if (key == LogicalKeyboardKey.enter ||
       key == LogicalKeyboardKey.numpadEnter) {
-    return 'Enter';
+    return vcbind.KeyboardKeys.enter;
   }
-  if (key == LogicalKeyboardKey.backspace) return 'Backspace';
-  if (key == LogicalKeyboardKey.tab) return 'Tab';
-  if (key == LogicalKeyboardKey.space) return 'Space';
+  if (key == LogicalKeyboardKey.backspace) return vcbind.KeyboardKeys.backspace;
+  if (key == LogicalKeyboardKey.tab) return vcbind.KeyboardKeys.tab;
+  if (key == LogicalKeyboardKey.space) return vcbind.KeyboardKeys.space;
 
-  if (key == LogicalKeyboardKey.arrowUp) return 'ArrowUp';
-  if (key == LogicalKeyboardKey.arrowDown) return 'ArrowDown';
-  if (key == LogicalKeyboardKey.arrowLeft) return 'ArrowLeft';
-  if (key == LogicalKeyboardKey.arrowRight) return 'ArrowRight';
+  if (key == LogicalKeyboardKey.arrowUp) return vcbind.KeyboardKeys.arrowUp;
+  if (key == LogicalKeyboardKey.arrowDown) return vcbind.KeyboardKeys.arrowDown;
+  if (key == LogicalKeyboardKey.arrowLeft) return vcbind.KeyboardKeys.arrowLeft;
+  if (key == LogicalKeyboardKey.arrowRight) {
+    return vcbind.KeyboardKeys.arrowRight;
+  }
 
   if (key == LogicalKeyboardKey.shiftLeft ||
       key == LogicalKeyboardKey.shiftRight) {
-    return 'Shift';
+    return vcbind.KeyboardKeys.shiftLeft;
   }
   if (key == LogicalKeyboardKey.controlLeft ||
       key == LogicalKeyboardKey.controlRight) {
-    return 'Ctrl';
+    return vcbind.KeyboardKeys.controlLeft;
   }
   if (key == LogicalKeyboardKey.altLeft || key == LogicalKeyboardKey.altRight) {
-    return 'Alt';
+    return vcbind.KeyboardKeys.altLeft;
   }
   if (key == LogicalKeyboardKey.metaLeft ||
       key == LogicalKeyboardKey.metaRight) {
-    return 'Meta';
+    return vcbind.KeyboardKeys.metaLeft;
   }
 
   final label = key.keyLabel.trim();
   if (label.isNotEmpty) {
-    if (label.length == 1) return label.toUpperCase();
-    return label;
+    return vcbind.KeyboardKey(label).normalized();
   }
 
   final name = key.debugName?.trim();
   if (name == null || name.isEmpty) return null;
-  return name;
+  return vcbind.KeyboardKey(name).normalized();
 }

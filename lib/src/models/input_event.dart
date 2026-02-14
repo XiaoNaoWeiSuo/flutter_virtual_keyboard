@@ -4,6 +4,9 @@
 /// These are sent over WebRTC DataChannel to the remote endpoint.
 library;
 
+import 'binding/binding.dart';
+import 'identifiers.dart';
+
 // ============================================================================
 // Base Input Event
 // ============================================================================
@@ -26,19 +29,24 @@ class KeyboardInputEvent extends InputEvent {
   });
 
   /// Create a key down event
-  factory KeyboardInputEvent.down(String key,
-      [List<String> modifiers = const []]) {
+  factory KeyboardInputEvent.down(
+    KeyboardKey key, [
+    List<KeyboardKey> modifiers = const [],
+  ]) {
     return KeyboardInputEvent(key: key, isDown: true, modifiers: modifiers);
   }
 
   /// Create a key up event
-  factory KeyboardInputEvent.up(String key,
-      [List<String> modifiers = const []]) {
+  factory KeyboardInputEvent.up(
+    KeyboardKey key, [
+    List<KeyboardKey> modifiers = const [],
+  ]) {
     return KeyboardInputEvent(key: key, isDown: false, modifiers: modifiers);
   }
-  final String key;
+
+  final KeyboardKey key;
   final bool isDown;
-  final List<String> modifiers;
+  final List<KeyboardKey> modifiers;
 
   @override
   String toString() =>
@@ -57,15 +65,15 @@ class MouseButtonInputEvent extends InputEvent {
   });
 
   /// Create a mouse button down event
-  factory MouseButtonInputEvent.down(String button) {
+  factory MouseButtonInputEvent.down(MouseButtonId button) {
     return MouseButtonInputEvent(button: button, isDown: true);
   }
 
   /// Create a mouse button up event
-  factory MouseButtonInputEvent.up(String button) {
+  factory MouseButtonInputEvent.up(MouseButtonId button) {
     return MouseButtonInputEvent(button: button, isDown: false);
   }
-  final String button; // left, right, middle
+  final MouseButtonId button;
   final bool isDown;
 
   @override
@@ -86,14 +94,14 @@ class MouseWheelInputEvent extends InputEvent {
 
   /// Create a scroll up event
   factory MouseWheelInputEvent.up([int delta = 3]) {
-    return MouseWheelInputEvent(direction: 'up', delta: delta);
+    return MouseWheelInputEvent(direction: MouseWheelDirection.up, delta: delta);
   }
 
   /// Create a scroll down event
   factory MouseWheelInputEvent.down([int delta = 3]) {
-    return MouseWheelInputEvent(direction: 'down', delta: delta);
+    return MouseWheelInputEvent(direction: MouseWheelDirection.down, delta: delta);
   }
-  final String direction; // up, down
+  final MouseWheelDirection direction;
   final int delta;
 
   @override
@@ -157,7 +165,7 @@ class JoystickInputEvent extends InputEvent {
   });
   final double dx; // -1.0 to 1.0
   final double dy; // -1.0 to 1.0
-  final List<String> activeKeys;
+  final List<KeyboardKey> activeKeys;
 
   @override
   String toString() =>
@@ -175,12 +183,12 @@ class GamepadButtonInputEvent extends InputEvent {
     required this.isDown,
   });
 
-  factory GamepadButtonInputEvent.down(String button) =>
+  factory GamepadButtonInputEvent.down(GamepadButtonId button) =>
       GamepadButtonInputEvent(button: button, isDown: true);
 
-  factory GamepadButtonInputEvent.up(String button) =>
+  factory GamepadButtonInputEvent.up(GamepadButtonId button) =>
       GamepadButtonInputEvent(button: button, isDown: false);
-  final String button;
+  final GamepadButtonId button;
   final bool isDown;
 
   @override
@@ -195,7 +203,7 @@ class GamepadAxisInputEvent extends InputEvent {
     required this.x,
     required this.y,
   });
-  final String axisId; // left, right
+  final GamepadStickId axisId;
   final double x;
   final double y;
 

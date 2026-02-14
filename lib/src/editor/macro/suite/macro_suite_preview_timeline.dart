@@ -14,7 +14,6 @@ class _PreviewTimeline extends StatefulWidget {
     required this.zoom,
     required this.selected,
     required this.onSelectedChanged,
-    required this.onMoveSegment,
     required this.onResizeDownUp,
     required this.onAdjustAxisWarp,
     required this.onCommitAxisWarp,
@@ -33,7 +32,6 @@ class _PreviewTimeline extends StatefulWidget {
   final double zoom;
   final _SelectedSegment? selected;
   final ValueChanged<_SelectedSegment?> onSelectedChanged;
-  final void Function(List<String> entryIds, int deltaMs) onMoveSegment;
   final void Function(
     String downId,
     String upId, {
@@ -55,6 +53,43 @@ class _PreviewTimeline extends StatefulWidget {
 class _PreviewTimelineState extends State<_PreviewTimeline> {
   double _zoomGestureBase = 1.0;
   bool _pinching = false;
+  int _activePointers = 0;
+  ScrollHoldController? _holdH;
+  ScrollHoldController? _holdV;
+  ScrollHoldController? _holdR;
+  ScrollHoldController? _holdA;
+
+  void _beginPinchMode() {
+    _holdH ??= widget.trackHorizontalScrollController.hasClients
+        ? widget.trackHorizontalScrollController.position.hold(() {})
+        : null;
+    _holdV ??= widget.trackScrollController.hasClients
+        ? widget.trackScrollController.position.hold(() {})
+        : null;
+    _holdR ??= widget.rulerScrollController.hasClients
+        ? widget.rulerScrollController.position.hold(() {})
+        : null;
+    _holdA ??= widget.axisScrollController.hasClients
+        ? widget.axisScrollController.position.hold(() {})
+        : null;
+  }
+
+  void _endPinchMode() {
+    _holdH?.cancel();
+    _holdV?.cancel();
+    _holdR?.cancel();
+    _holdA?.cancel();
+    _holdH = null;
+    _holdV = null;
+    _holdR = null;
+    _holdA = null;
+  }
+
+  @override
+  void dispose() {
+    _endPinchMode();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -62,11 +97,27 @@ class _PreviewTimelineState extends State<_PreviewTimeline> {
       ..sort((a, b) => a.event.atMs.compareTo(b.event.atMs));
     final lanes = _buildLanes(ordered, durationMs: widget.durationMs);
     final selected = widget.selected;
-    final showNeedle = selected != null;
 
     const axisWidth = 70.0;
     const rulerHeight = 30.0;
-    const rowHeight = 32.0;
+    const baseRowHeight = 32.0;
+    const axisRowHeight = 44.0;
+    final laneHeights = lanes
+        .map((l) => (l.type == 'joystick' || l.type == 'gamepad_axis')
+            ? axisRowHeight
+            : baseRowHeight)
+        .toList(growable: false);
+    final laneTopByKey = <String, double>{};
+    final laneHeightByKey = <String, double>{};
+    var acc = 0.0;
+    for (var i = 0; i < lanes.length; i++) {
+      final lane = lanes[i];
+      final h = laneHeights[i];
+      laneTopByKey[lane.key] = acc;
+      laneHeightByKey[lane.key] = h;
+      acc += h;
+    }
+    final totalHeight = acc;
     const leftPad = 12.0;
     const rightPad = 20.0;
     final pxPerMs = 0.14 * widget.zoom;
@@ -74,187 +125,236 @@ class _PreviewTimelineState extends State<_PreviewTimeline> {
         leftPad +
         rightPad;
 
-    return GestureDetector(
-      onTap: () => widget.onSelectedChanged(null),
-      onScaleStart: (d) {
-        if (d.pointerCount < 2) return;
-        _zoomGestureBase = widget.zoom;
-        setState(() => _pinching = true);
+    return Listener(
+      behavior: HitTestBehavior.opaque,
+      onPointerDown: (_) {
+        _activePointers++;
+        if (_activePointers == 2) {
+          _zoomGestureBase = widget.zoom;
+          _beginPinchMode();
+          setState(() => _pinching = true);
+        }
       },
-      onScaleUpdate: (d) {
-        if (d.pointerCount < 2) return;
-        final next = (_zoomGestureBase * d.scale).clamp(0.4, 4.0);
-        widget.onZoomChanged(next);
+      onPointerUp: (_) {
+        _activePointers = (_activePointers - 1).clamp(0, 999);
+        if (_activePointers < 2 && _pinching) {
+          _endPinchMode();
+          setState(() => _pinching = false);
+        }
       },
-      onScaleEnd: (_) => setState(() => _pinching = false),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.02),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-        ),
-        child: ClipRRect(
-          clipBehavior: Clip.antiAliasWithSaveLayer,
-          borderRadius: BorderRadius.circular(10),
-          child: Column(
-            children: [
-              SizedBox(
-                height: rulerHeight,
-                child: Row(
-                  children: [
-                    SizedBox(
-                      width: axisWidth,
-                      height: rulerHeight,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.max,
-                        children: [
-                          SizedBox(
-                            width: axisWidth / 2,
-                            height: rulerHeight,
-                            child: InkWell(
-                              onTap: () => widget.onZoomChanged(
-                                (widget.zoom / 1.15).clamp(0.4, 4.0),
-                              ),
-                              child: const Icon(Icons.remove,
-                                  color: Colors.white60, size: 12),
-                            ),
-                          ),
-                          SizedBox(
-                            width: axisWidth / 2,
-                            height: rulerHeight,
-                            child: InkWell(
-                              onTap: () => widget.onZoomChanged(
-                                (widget.zoom * 1.15).clamp(0.4, 4.0),
-                              ),
-                              child: const Icon(Icons.add,
-                                  color: Colors.white60, size: 12),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Expanded(
-                        child: SingleChildScrollView(
-                      controller: widget.rulerScrollController,
-                      physics: _pinching
-                          ? const NeverScrollableScrollPhysics()
-                          : null,
-                      scrollDirection: Axis.horizontal,
-                      child: SizedBox(
-                        width: contentWidth,
+      onPointerCancel: (_) {
+        _activePointers = (_activePointers - 1).clamp(0, 999);
+        if (_activePointers < 2 && _pinching) {
+          _endPinchMode();
+          setState(() => _pinching = false);
+        }
+      },
+      onPointerSignal: (signal) {
+        if (signal is PointerScaleEvent) {
+          final next = (widget.zoom * signal.scale).clamp(0.4, 20.0);
+          widget.onZoomChanged(next);
+        }
+      },
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => widget.onSelectedChanged(null),
+        onScaleStart: (d) {
+          if (d.pointerCount < 2) return;
+          _zoomGestureBase = widget.zoom;
+          if (!_pinching) {
+            _beginPinchMode();
+            setState(() => _pinching = true);
+          }
+        },
+        onScaleUpdate: (d) {
+          if (d.pointerCount < 2) return;
+          final next = (_zoomGestureBase * d.scale).clamp(0.4, 20.0);
+          widget.onZoomChanged(next);
+        },
+        onScaleEnd: (_) {
+          if (_activePointers < 2 && _pinching) {
+            _endPinchMode();
+            setState(() => _pinching = false);
+          }
+        },
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.02),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+          ),
+          child: ClipRRect(
+            clipBehavior: Clip.antiAliasWithSaveLayer,
+            borderRadius: BorderRadius.circular(10),
+            child: Column(
+              children: [
+                SizedBox(
+                  height: rulerHeight,
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: axisWidth,
                         height: rulerHeight,
-                        child: CustomPaint(
-                          painter: _TimeRulerPainter(
-                            durationMs: widget.displayDurationMs,
-                            pxPerMs: pxPerMs,
-                            leftPad: leftPad,
-                            height: rulerHeight,
-                          ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.max,
+                          children: [
+                            SizedBox(
+                              width: axisWidth / 2,
+                              height: rulerHeight,
+                              child: InkWell(
+                                onTap: () => widget.onZoomChanged(
+                                  (widget.zoom / 1.15).clamp(0.4, 20.0),
+                                ),
+                                child: const Icon(Icons.remove,
+                                    color: Colors.white60, size: 12),
+                              ),
+                            ),
+                            SizedBox(
+                              width: axisWidth / 2,
+                              height: rulerHeight,
+                              child: InkWell(
+                                onTap: () => widget.onZoomChanged(
+                                  (widget.zoom * 1.15).clamp(0.4, 20.0),
+                                ),
+                                child: const Icon(Icons.add,
+                                    color: Colors.white60, size: 12),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    )),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: Row(
-                  children: [
-                    SizedBox(
-                        width: axisWidth,
-                        child: ListView.builder(
-                          controller: widget.axisScrollController,
-                          physics: _pinching
-                              ? const NeverScrollableScrollPhysics()
-                              : null,
-                          itemCount: lanes.length,
-                          itemExtent: rowHeight,
-                          itemBuilder: (context, index) => _PreviewLaneLabelRow(
-                              lane: lanes[index], index: index),
-                        )),
-                    Expanded(
-                      child: SingleChildScrollView(
-                        controller: widget.trackHorizontalScrollController,
+                      Expanded(
+                          child: SingleChildScrollView(
+                        controller: widget.rulerScrollController,
                         physics: _pinching
                             ? const NeverScrollableScrollPhysics()
                             : null,
                         scrollDirection: Axis.horizontal,
                         child: SizedBox(
                           width: contentWidth,
-                          child: Stack(
-                            children: [
-                              Positioned.fill(
-                                child: CustomPaint(
-                                  painter: _TimeGridPainter(
-                                    durationMs: widget.displayDurationMs,
-                                    pxPerMs: pxPerMs,
-                                    leftPad: leftPad,
-                                    height: lanes.length * rowHeight,
+                          height: rulerHeight,
+                          child: CustomPaint(
+                            painter: _TimeRulerPainter(
+                              durationMs: widget.displayDurationMs,
+                              pxPerMs: pxPerMs,
+                              leftPad: leftPad,
+                              height: rulerHeight,
+                            ),
+                          ),
+                        ),
+                      )),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: Row(
+                    children: [
+                      SizedBox(
+                          width: axisWidth,
+                          child: ListView.builder(
+                            controller: widget.axisScrollController,
+                            physics: _pinching
+                                ? const NeverScrollableScrollPhysics()
+                                : null,
+                            itemCount: lanes.length,
+                            itemBuilder: (context, index) => SizedBox(
+                              height: laneHeights[index],
+                              child: _PreviewLaneLabelRow(
+                                  lane: lanes[index], index: index),
+                            ),
+                          )),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          controller: widget.trackHorizontalScrollController,
+                          physics: _pinching
+                              ? const NeverScrollableScrollPhysics()
+                              : null,
+                          scrollDirection: Axis.horizontal,
+                          child: SizedBox(
+                            width: contentWidth,
+                            child: Stack(
+                              children: [
+                                Positioned.fill(
+                                  child: CustomPaint(
+                                    painter: _TimeGridPainter(
+                                      durationMs: widget.displayDurationMs,
+                                      pxPerMs: pxPerMs,
+                                      leftPad: leftPad,
+                                      height: totalHeight,
+                                    ),
                                   ),
                                 ),
-                              ),
-                              ListView.builder(
-                                controller: widget.trackScrollController,
-                                physics: _pinching
-                                    ? const NeverScrollableScrollPhysics()
-                                    : null,
-                                itemCount: lanes.length,
-                                itemExtent: rowHeight,
-                                itemBuilder: (context, index) {
-                                  final lane = lanes[index];
-                                  if (lane.type == 'joystick' ||
-                                      lane.type == 'gamepad_axis') {
-                                    return _AxisLaneInteractive(
-                                      lane: lane,
-                                      laneIndex: index,
-                                      rowHeight: rowHeight,
-                                      leftPad: leftPad,
-                                      pxPerMs: pxPerMs,
-                                      displayDurationMs:
-                                          widget.displayDurationMs,
-                                      axisWarpOps: widget
-                                              .axisWarpOpsByLaneKey[lane.key] ??
-                                          [],
-                                      axisSelectionSpanMs:
-                                          widget.axisSelectionSpanMs,
-                                      selected: widget.selected,
-                                      onSelectedChanged:
-                                          widget.onSelectedChanged,
+                                ListView.builder(
+                                  controller: widget.trackScrollController,
+                                  physics: _pinching
+                                      ? const NeverScrollableScrollPhysics()
+                                      : null,
+                                  itemCount: lanes.length,
+                                  itemBuilder: (context, index) {
+                                    final lane = lanes[index];
+                                    if (lane.type == 'joystick' ||
+                                        lane.type == 'gamepad_axis') {
+                                      return SizedBox(
+                                        height: laneHeights[index],
+                                        child: _AxisLaneInteractive(
+                                          lane: lane,
+                                          laneIndex: index,
+                                          rowHeight: laneHeights[index],
+                                          leftPad: leftPad,
+                                          pxPerMs: pxPerMs,
+                                          displayDurationMs:
+                                              widget.displayDurationMs,
+                                          axisWarpOps:
+                                              widget.axisWarpOpsByLaneKey[
+                                                      lane.key] ??
+                                                  [],
+                                          axisSelectionSpanMs:
+                                              widget.axisSelectionSpanMs,
+                                          selected: widget.selected,
+                                          onSelectedChanged:
+                                              widget.onSelectedChanged,
+                                        ),
+                                      );
+                                    }
+                                    return SizedBox(
+                                      height: laneHeights[index],
+                                      child: _PreviewLaneRow(
+                                        lane: lane,
+                                        laneIndex: index,
+                                        rowHeight: laneHeights[index],
+                                        leftPad: leftPad,
+                                        pxPerMs: pxPerMs,
+                                        selected: widget.selected,
+                                        onSelectedChanged:
+                                            widget.onSelectedChanged,
+                                      ),
                                     );
-                                  }
-                                  return _PreviewLaneRow(
-                                    lane: lane,
-                                    laneIndex: index,
-                                    rowHeight: rowHeight,
+                                  },
+                                ),
+                                if (selected != null)
+                                  _NeedleOverlay(
+                                    lanes: lanes,
+                                    selected: selected,
                                     leftPad: leftPad,
                                     pxPerMs: pxPerMs,
-                                    selected: widget.selected,
+                                    laneTopByKey: laneTopByKey,
+                                    laneHeightByKey: laneHeightByKey,
+                                    contentHeight: totalHeight,
                                     onSelectedChanged: widget.onSelectedChanged,
-                                    onMoveSegment: widget.onMoveSegment,
-                                  );
-                                },
-                              ),
-                              if (showNeedle)
-                                _NeedleOverlay(
-                                  lanes: lanes,
-                                  selected: selected!,
-                                  leftPad: leftPad,
-                                  pxPerMs: pxPerMs,
-                                  contentHeight: lanes.length * rowHeight,
-                                  onSelectedChanged: widget.onSelectedChanged,
-                                  onMoveSegment: widget.onMoveSegment,
-                                  onResizeDownUp: widget.onResizeDownUp,
-                                  onAdjustAxisWarp: widget.onAdjustAxisWarp,
-                                  onCommitAxisWarp: widget.onCommitAxisWarp,
-                                ),
-                            ],
+                                    onResizeDownUp: widget.onResizeDownUp,
+                                    onAdjustAxisWarp: widget.onAdjustAxisWarp,
+                                    onCommitAxisWarp: widget.onCommitAxisWarp,
+                                  ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -507,7 +607,6 @@ class _PreviewLaneRow extends StatelessWidget {
     required this.pxPerMs,
     required this.selected,
     required this.onSelectedChanged,
-    required this.onMoveSegment,
   });
 
   final _PreviewLane lane;
@@ -517,7 +616,6 @@ class _PreviewLaneRow extends StatelessWidget {
   final double pxPerMs;
   final _SelectedSegment? selected;
   final ValueChanged<_SelectedSegment?> onSelectedChanged;
-  final void Function(List<String> entryIds, int deltaMs) onMoveSegment;
 
   @override
   Widget build(BuildContext context) {
@@ -538,12 +636,10 @@ class _PreviewLaneRow extends StatelessWidget {
               width: ((seg.endMs - seg.startMs) * pxPerMs).clamp(6.0, 99999.0),
               height: 24,
               child: _SegmentDraggable(
-                pxPerMs: pxPerMs,
                 segment: seg,
                 lane: lane,
                 selected: selected,
                 onSelectedChanged: onSelectedChanged,
-                onMoveSegment: onMoveSegment,
               ),
             ),
         ],
@@ -736,9 +832,10 @@ class _NeedleOverlay extends StatefulWidget {
     required this.selected,
     required this.leftPad,
     required this.pxPerMs,
+    required this.laneTopByKey,
+    required this.laneHeightByKey,
     required this.contentHeight,
     required this.onSelectedChanged,
-    required this.onMoveSegment,
     required this.onResizeDownUp,
     this.onAdjustAxisWarp,
     this.onCommitAxisWarp,
@@ -748,9 +845,10 @@ class _NeedleOverlay extends StatefulWidget {
   final _SelectedSegment selected;
   final double leftPad;
   final double pxPerMs;
+  final Map<String, double> laneTopByKey;
+  final Map<String, double> laneHeightByKey;
   final double contentHeight;
   final ValueChanged<_SelectedSegment?> onSelectedChanged;
-  final void Function(List<String> entryIds, int deltaMs) onMoveSegment;
   final void Function(
     String downId,
     String upId, {
@@ -797,117 +895,106 @@ class _NeedleOverlayState extends State<_NeedleOverlay> {
     final endX = widget.leftPad + s.endMs * widget.pxPerMs;
     final isAxisLike = s.type == 'joystick' || s.type == 'gamepad_axis';
     final canResize = !isAxisLike && s.entryIds.length == 2;
+    final laneTop = (widget.laneTopByKey[s.laneKey] ?? 0.0)
+        .clamp(0.0, widget.contentHeight);
+    final laneHeight = (widget.laneHeightByKey[s.laneKey] ?? 32.0)
+        .clamp(0.0, widget.contentHeight);
 
     Widget needle({
       required double x,
       required bool isStart,
     }) {
-      return Positioned(
-        left: x - 16,
-        top: 0,
-        width: 32,
-        height: widget.contentHeight,
-        child: GestureDetector(
-          behavior: HitTestBehavior.translucent,
-          onHorizontalDragStart: (_) {
-            _startResidDx = 0;
-            _endResidDx = 0;
-          },
-          onHorizontalDragUpdate: (d) {
-            final deltaMs = isStart
-                ? _consumeStartDx(d.delta.dx)
-                : _consumeEndDx(d.delta.dx);
-            if (deltaMs == 0) return;
+      const knobSize = 22.0;
+      final knobTop = (laneTop +
+              (isStart ? 0.0 : (laneHeight - knobSize).clamp(0.0, 999999.0)))
+          .clamp(0.0, widget.contentHeight - knobSize);
 
-            if (isAxisLike) {
-              if (s.entryIds.isEmpty && widget.onAdjustAxisWarp != null) {
-                widget.onAdjustAxisWarp!(
-                  s.laneKey,
-                  deltaStartMs: isStart ? deltaMs : 0,
-                  deltaEndMs: isStart ? 0 : deltaMs,
-                );
-              }
-            } else if (canResize) {
-              widget.onResizeDownUp(
-                s.entryIds.first,
-                s.entryIds.last,
-                deltaStartMs: isStart ? deltaMs : 0,
-                deltaEndMs: isStart ? 0 : deltaMs,
-              );
-            } else {
-              if (isStart) {
-                widget.onMoveSegment(s.entryIds, deltaMs);
-              } else {
-                final nextEnd =
-                    (s.endMs + deltaMs).clamp(s.startMs, 999999).toInt();
-                widget.onSelectedChanged(
-                  _SelectedSegment(
-                    id: s.id,
-                    laneKey: s.laneKey,
-                    type: s.type,
-                    startMs: s.startMs,
-                    endMs: nextEnd,
-                    entryIds: s.entryIds,
-                  ),
-                );
-              }
-            }
-          },
-          onHorizontalDragEnd: (_) {
-            if (isAxisLike && widget.onCommitAxisWarp != null) {
-              widget.onCommitAxisWarp!(s);
-            }
-          },
-          child: Stack(
-            children: [
-              Positioned.fill(
-                child: Align(
-                  alignment: Alignment.center,
-                  child: Container(
-                    width: 2,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.22),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
+      return Stack(
+        children: [
+          Positioned(
+            left: x - 1,
+            top: 0,
+            width: 2,
+            height: widget.contentHeight,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.22),
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: Center(
-                  child: Container(
-                    width: 14,
-                    height: 14,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.14),
-                      borderRadius: BorderRadius.circular(7),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.18),
-                      ),
-                    ),
-                    child: Icon(
-                      isStart ? Icons.arrow_left : Icons.arrow_right,
-                      size: 12,
-                      color: Colors.white.withValues(alpha: 0.65),
-                    ),
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
-        ),
+          Positioned(
+            left: x - knobSize / 2,
+            top: knobTop,
+            width: knobSize,
+            height: knobSize,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onHorizontalDragStart: (_) {
+                _startResidDx = 0;
+                _endResidDx = 0;
+              },
+              onHorizontalDragUpdate: (d) {
+                final deltaMs = isStart
+                    ? _consumeStartDx(d.delta.dx)
+                    : _consumeEndDx(d.delta.dx);
+                if (deltaMs == 0) return;
+
+                if (isAxisLike) {
+                  if (s.entryIds.isEmpty && widget.onAdjustAxisWarp != null) {
+                    widget.onAdjustAxisWarp!(
+                      s.laneKey,
+                      deltaStartMs: isStart ? deltaMs : 0,
+                      deltaEndMs: isStart ? 0 : deltaMs,
+                    );
+                  }
+                  return;
+                }
+
+                if (canResize) {
+                  widget.onResizeDownUp(
+                    s.entryIds.first,
+                    s.entryIds.last,
+                    deltaStartMs: isStart ? deltaMs : 0,
+                    deltaEndMs: isStart ? 0 : deltaMs,
+                  );
+                }
+              },
+              onHorizontalDragEnd: (_) {
+                if (isAxisLike && widget.onCommitAxisWarp != null) {
+                  widget.onCommitAxisWarp!(s);
+                }
+              },
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(knobSize / 2),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.18),
+                  ),
+                ),
+                child: Icon(
+                  isStart ? Icons.arrow_left : Icons.arrow_right,
+                  size: 14,
+                  color: Colors.white.withValues(alpha: 0.70),
+                ),
+              ),
+            ),
+          ),
+        ],
       );
     }
 
     Widget bodyDragArea() {
+      if (!isAxisLike) return const SizedBox();
       if (endX <= startX) return const SizedBox();
       return Positioned(
         left: startX + 16,
-        top: 0,
+        top: laneTop,
         width: (endX - startX - 32).clamp(0.0, 99999.0),
-        height: widget.contentHeight,
+        height: laneHeight,
         child: GestureDetector(
           behavior: HitTestBehavior.translucent,
           onHorizontalDragStart: (_) {
@@ -918,54 +1005,11 @@ class _NeedleOverlayState extends State<_NeedleOverlay> {
             final deltaMs = _consumeStartDx(d.delta.dx);
             if (deltaMs == 0) return;
 
-            // Move the selection window itself, NOT the data.
-            // This allows fine-tuning the selection area.
-
-            final nextStart = (s.startMs + deltaMs).clamp(0, 999999).toInt();
-            final nextEnd =
-                (s.endMs + deltaMs).clamp(nextStart, 999999).toInt();
-
-            if (isAxisLike) {
-              // For Axis, we are adjusting the warp mapping window
-              if (widget.onAdjustAxisWarp != null) {
-                widget.onAdjustAxisWarp!(
-                  s.laneKey,
-                  deltaStartMs: deltaMs,
-                  deltaEndMs: deltaMs,
-                );
-              }
-            } else {
-              // For normal segments, we just move the selection highlight
-              // But wait, if s.entryIds is not empty, does changing selection
-              // imply anything?
-              // Usually selection is bound to the segment.
-              // If user wants to move the selection "over" the timeline to select something else?
-              // Or just visually adjust the highlight?
-              // User said "micro-adjust selection area, irrelevant to data".
-              // So we should just update the selection bounds.
-
-              widget.onSelectedChanged(
-                _SelectedSegment(
-                  id: s.id,
-                  laneKey: s.laneKey,
-                  type: s.type,
-                  startMs: nextStart,
-                  endMs: nextEnd,
-                  entryIds: s
-                      .entryIds, // Keep entryIds? Or clear them if it moves off?
-                  // If we move the selection, it might no longer match the entryIds.
-                  // But user wants to adjust the selection.
-                  // If it's a bound selection (entryIds set), usually it tracks the data.
-                  // If user drags it, maybe they want to detach and make it a free selection?
-                  // Or maybe just for Axis this makes sense (adjusting the warp window).
-                  // For normal segments, selection == data segment.
-                  // Moving selection without moving data means detaching?
-
-                  // Let's assume for Axis/Joystick (which seems to be the context of "selector"),
-                  // it is about the Warp Window.
-                  // For normal segments, if they really want to move selection only,
-                  // we update the selection state but NOT call onMoveSegment.
-                ),
+            if (widget.onAdjustAxisWarp != null) {
+              widget.onAdjustAxisWarp!(
+                s.laneKey,
+                deltaStartMs: deltaMs,
+                deltaEndMs: deltaMs,
               );
             }
           },
@@ -994,28 +1038,22 @@ class _NeedleOverlayState extends State<_NeedleOverlay> {
 
 class _SegmentDraggable extends StatefulWidget {
   const _SegmentDraggable({
-    required this.pxPerMs,
     required this.segment,
     required this.lane,
     required this.selected,
     required this.onSelectedChanged,
-    required this.onMoveSegment,
   });
 
-  final double pxPerMs;
   final _PreviewSegment segment;
   final _PreviewLane lane;
   final _SelectedSegment? selected;
   final ValueChanged<_SelectedSegment?> onSelectedChanged;
-  final void Function(List<String> entryIds, int deltaMs) onMoveSegment;
 
   @override
   State<_SegmentDraggable> createState() => _SegmentDraggableState();
 }
 
 class _SegmentDraggableState extends State<_SegmentDraggable> {
-  double _bodyResidDx = 0;
-
   bool get _isSelected {
     final s = widget.selected;
     if (s == null) return false;
@@ -1032,17 +1070,6 @@ class _SegmentDraggableState extends State<_SegmentDraggable> {
         entryIds: widget.segment.entryIds,
       );
 
-  int _consumeBodyDx(double dx) {
-    _bodyResidDx += dx;
-    final unit = widget.pxPerMs;
-    if (unit <= 0) return 0;
-    final deltaMs = (_bodyResidDx / unit).truncate();
-    if (deltaMs != 0) {
-      _bodyResidDx -= deltaMs * unit;
-    }
-    return deltaMs;
-  }
-
   @override
   Widget build(BuildContext context) {
     final selected = _isSelected;
@@ -1057,21 +1084,18 @@ class _SegmentDraggableState extends State<_SegmentDraggable> {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () => widget.onSelectedChanged(_asSelected()),
-      onHorizontalDragUpdate: (d) {
-        if (!selected) widget.onSelectedChanged(_asSelected());
-        final deltaMs = _consumeBodyDx(d.delta.dx);
-        if (deltaMs != 0) {
-          widget.onMoveSegment(widget.segment.entryIds, deltaMs);
-        }
-      },
       child: Stack(
         children: [
           Positioned.fill(
             child: Container(
               decoration: BoxDecoration(
                 color: baseFillColor,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: baseBorderColor),
+                borderRadius: BorderRadius.circular(selected ? 1 : 5),
+                border: selected
+                    ? const Border.symmetric(
+                        horizontal:
+                            BorderSide(width: 1, color: Colors.amberAccent))
+                    : Border.all(color: baseBorderColor),
               ),
             ),
           ),
@@ -1110,8 +1134,43 @@ class _TimeRulerPainter extends CustomPainter {
       ..color = Colors.white.withValues(alpha: 0.20)
       ..strokeWidth = 1;
 
-    const step = 100;
-    const majorEvery = 500;
+    int chooseMinorStepMs() {
+      const candidates = [
+        1,
+        2,
+        5,
+        10,
+        20,
+        50,
+        100,
+        200,
+        500,
+        1000,
+        2000,
+        5000,
+        10000
+      ];
+      const minSpacingPx = 2.0;
+      final ppm = pxPerMs <= 0 ? 0.0001 : pxPerMs;
+      for (final ms in candidates) {
+        if (ms * ppm >= minSpacingPx) return ms;
+      }
+      return candidates.last;
+    }
+
+    int chooseMajorEveryMs(int minorMs) {
+      const multipliers = [5, 10, 20, 50, 100];
+      const majorSpacingPx = 70.0;
+      final ppm = pxPerMs <= 0 ? 0.0001 : pxPerMs;
+      for (final m in multipliers) {
+        final major = minorMs * m;
+        if (major * ppm >= majorSpacingPx) return major;
+      }
+      return minorMs * multipliers.last;
+    }
+
+    final step = chooseMinorStepMs();
+    final majorEvery = chooseMajorEveryMs(step);
 
     for (int t = 0; t <= durationMs; t += step) {
       final x = leftPad + t * pxPerMs;
@@ -1168,8 +1227,43 @@ class _TimeGridPainter extends CustomPainter {
       ..color = Colors.white.withValues(alpha: 0.08)
       ..strokeWidth = 1;
 
-    const step = 100;
-    const majorEvery = 500;
+    int chooseMinorStepMs() {
+      const candidates = [
+        1,
+        2,
+        5,
+        10,
+        20,
+        50,
+        100,
+        200,
+        500,
+        1000,
+        2000,
+        5000,
+        10000
+      ];
+      const minSpacingPx = 2.0;
+      final ppm = pxPerMs <= 0 ? 0.0001 : pxPerMs;
+      for (final ms in candidates) {
+        if (ms * ppm >= minSpacingPx) return ms;
+      }
+      return candidates.last;
+    }
+
+    int chooseMajorEveryMs(int minorMs) {
+      const multipliers = [5, 10, 20, 50, 100];
+      const majorSpacingPx = 70.0;
+      final ppm = pxPerMs <= 0 ? 0.0001 : pxPerMs;
+      for (final m in multipliers) {
+        final major = minorMs * m;
+        if (major * ppm >= majorSpacingPx) return major;
+      }
+      return minorMs * multipliers.last;
+    }
+
+    final step = chooseMinorStepMs();
+    final majorEvery = chooseMajorEveryMs(step);
 
     for (int t = 0; t <= durationMs; t += step) {
       final x = leftPad + t * pxPerMs;

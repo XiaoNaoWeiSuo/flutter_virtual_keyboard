@@ -35,7 +35,7 @@ class _VirtualButtonWidgetState extends State<VirtualButtonWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final button = widget.control.binding.code;
+    final button = widget.control.gamepadButton;
     final style = widget.control.style;
     final useSymbol = style?.useGamepadSymbol ?? true;
     final text = style?.labelText ?? (useSymbol ? '' : widget.control.label);

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/controls/virtual_mouse_wheel.dart';
+import '../../models/identifiers.dart';
 import '../../models/input_event.dart';
 import '../shared/control_container.dart';
 import '../shared/control_utils.dart';
@@ -29,7 +30,7 @@ class _VirtualMouseWheelWidgetState extends State<VirtualMouseWheelWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final icon = widget.control.direction == 'up'
+    final icon = widget.control.direction == MouseWheelDirection.up
         ? Icons.keyboard_arrow_up
         : Icons.keyboard_arrow_down;
 
@@ -37,9 +38,9 @@ class _VirtualMouseWheelWidgetState extends State<VirtualMouseWheelWidget> {
       onTapDown: (_) {
         setState(() => _isPressed = true);
         triggerFeedback(widget.control.feedback, true);
-        final delta = widget.control.direction == 'up' ? 1 : -1;
-        widget.onInputEvent(MouseWheelInputEvent(
-            direction: widget.control.direction, delta: delta * 120));
+        widget.onInputEvent(
+          MouseWheelInputEvent(direction: widget.control.direction, delta: 120),
+        );
       },
       onTapUp: (_) => setState(() => _isPressed = false),
       onTapCancel: () => setState(() => _isPressed = false),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../core/dynamic_control_factory.dart';
 import '../models/virtual_controller_models.dart';
 import '../utils/control_geometry.dart';
+import '../utils/layout_state_protocol.dart';
 import 'resize_direction.dart';
 
 class VirtualControllerLayoutEditorController extends ChangeNotifier {
@@ -13,13 +14,42 @@ class VirtualControllerLayoutEditorController extends ChangeNotifier {
     this.allowResize = true,
     this.allowMove = true,
     this.allowRename = false,
-  })  : _definition = definition,
-        _definitionIds = definition.controls.map((c) => c.id).toSet(),
+  })  : _definition = _computeInitialDefinition(
+          definition: definition,
+          state: state,
+          allowAddRemove: allowAddRemove,
+        ),
+        _definitionIds = _computeInitialDefinition(
+                definition: definition,
+                state: state,
+                allowAddRemove: allowAddRemove)
+            .controls
+            .map((c) => c.id)
+            .toSet(),
         _state = state,
-        _layout = _applyState(definition, state);
+        _layout = _applyState(
+            _computeInitialDefinition(
+              definition: definition,
+              state: state,
+              allowAddRemove: allowAddRemove,
+            ),
+            state);
 
-  final VirtualControllerLayout _definition;
-  final Set<String> _definitionIds;
+  static VirtualControllerLayout _computeInitialDefinition({
+    required VirtualControllerLayout definition,
+    required VirtualControllerState state,
+    required bool allowAddRemove,
+  }) {
+    if (!allowAddRemove) return definition;
+    return buildDefinitionFromState(
+      state,
+      runtimeDefaults: false,
+      fallbackName: definition.name,
+    );
+  }
+
+  VirtualControllerLayout _definition;
+  Set<String> _definitionIds;
   VirtualControllerState _state;
   VirtualControllerLayout _layout;
   VirtualControl? _selected;
@@ -75,6 +105,14 @@ class VirtualControllerLayoutEditorController extends ChangeNotifier {
 
   void replaceState(VirtualControllerState state, {bool markDirty = false}) {
     _state = state;
+    if (allowAddRemove) {
+      _definition = buildDefinitionFromState(
+        _state,
+        runtimeDefaults: false,
+        fallbackName: _definition.name,
+      );
+      _definitionIds = _definition.controls.map((c) => c.id).toSet();
+    }
     _layout = _applyState(_definition, _state);
     _isDirty = markDirty;
     if (_selected != null) {
@@ -117,6 +155,14 @@ class VirtualControllerLayoutEditorController extends ChangeNotifier {
         config: config,
       ),
     );
+    if (allowAddRemove) {
+      _definition = buildDefinitionFromState(
+        _state,
+        runtimeDefaults: false,
+        fallbackName: _definition.name,
+      );
+      _definitionIds = _definition.controls.map((c) => c.id).toSet();
+    }
     _layout = _applyState(_definition, _state);
     _isDirty = true;
     final next = _layout.controls
@@ -130,20 +176,14 @@ class VirtualControllerLayoutEditorController extends ChangeNotifier {
     if (readOnly || !allowAddRemove) return;
     final selected = _selected;
     if (selected == null) return;
-    if (_definitionIds.contains(selected.id)) {
-      final prev = _state.stateFor(selected.id);
-      final nextConfig = Map<String, dynamic>.from(prev?.config ?? const {});
-      nextConfig['deleted'] = true;
-      _state = _state.upsert(
-        VirtualControlState(
-          id: selected.id,
-          layout: prev?.layout ?? selected.layout,
-          opacity: prev?.opacity ?? 1.0,
-          config: nextConfig,
-        ),
+    _state = _state.remove(selected.id);
+    if (allowAddRemove) {
+      _definition = buildDefinitionFromState(
+        _state,
+        runtimeDefaults: false,
+        fallbackName: _definition.name,
       );
-    } else {
-      _state = _state.remove(selected.id);
+      _definitionIds = _definition.controls.map((c) => c.id).toSet();
     }
     _layout = _applyState(_definition, _state);
     _isDirty = true;
@@ -641,9 +681,6 @@ VirtualControllerLayout _applyState(
       controls.add(c);
       continue;
     }
-    if (s.config['deleted'] == true) {
-      continue;
-    }
     final nextConfig = Map<String, dynamic>.from(c.config);
     if (s.config.isNotEmpty) {
       nextConfig.addAll(s.config);
@@ -656,7 +693,6 @@ VirtualControllerLayout _applyState(
 
   for (final s in state.controls) {
     if (definitionIds.contains(s.id)) continue;
-    if (s.config['deleted'] == true) continue;
     final dynControl =
         dynamicControlFromId(s.id, s.layout, runtimeDefaults: false);
     if (dynControl == null) continue;

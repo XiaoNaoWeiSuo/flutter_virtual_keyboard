@@ -1,16 +1,15 @@
-# example
+# Virtual Gamepad Pro Example
 
-A new Flutter project.
+这个示例 App 用来演示：
+- 运行时渲染：`VirtualControllerOverlay`
+- 运行时布局编辑：`VirtualControllerLayoutEditor`
+- 布局管理：新建/重命名/复制/导入/导出
+- 宏录制/编辑：`MacroSuitePage` / `VirtualControllerMacroRecordingSession`
 
-## Getting Started
+## 运行
 
-This project is a starting point for a Flutter application.
+```bash
+flutter run
+```
 
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+默认会进入“布局管理”页面，可在不同预设分辨率下预览布局效果。

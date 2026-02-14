@@ -13,6 +13,7 @@ void main() {
   testWidgets('App builds', (WidgetTester tester) async {
     await tester.pumpWidget(const MyApp());
     await tester.pumpAndSettle();
-    expect(find.textContaining('Virtual Gamepad Pro'), findsWidgets);
+    expect(find.text('预览'), findsWidgets);
+    expect(find.text('编辑'), findsWidgets);
   });
 }
