@@ -1338,13 +1338,9 @@ class _AxisLanePainter extends CustomPainter {
       ..style = PaintingStyle.stroke;
 
     final path = Path();
-    var first = true;
 
     for (final seg in lane.segments) {
       if (seg.entryIds.isEmpty) continue;
-      final t = seg.startMs;
-      final mappedT = _mapAtMs(t);
-      final x = mappedT * pxPerMs;
 
       final yBase = size.height / 2;
 

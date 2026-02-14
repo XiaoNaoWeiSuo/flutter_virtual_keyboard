@@ -30,7 +30,6 @@ class _SelectedSegment {
     required this.entryIds,
     this.originStartMs,
     this.originEndMs,
-    this.uiShiftPx = 0,
     this.applyAxisWarp = false,
     this.axisWarpId,
   });
@@ -43,7 +42,6 @@ class _SelectedSegment {
   final List<String> entryIds;
   final int? originStartMs;
   final int? originEndMs;
-  final double uiShiftPx;
   final bool applyAxisWarp;
   final String? axisWarpId;
 }
