@@ -89,12 +89,14 @@ class VirtualControllerLayoutEditorController extends ChangeNotifier {
     if (v is bool) return v;
     return selected.enable3D;
   }
+
   bool get canDeleteSelected {
     if (readOnly || !allowAddRemove) return false;
     final selected = _selected;
     if (selected == null) return false;
     return true;
   }
+
   double get selectedOpacity {
     final id = _selected?.id;
     if (id == null) return 1.0;
@@ -593,9 +595,10 @@ class VirtualControllerLayoutEditorController extends ChangeNotifier {
             }).toList();
 
       final configLabel = nextConfig['label'];
-      final appliedLabel = (configLabel is String && configLabel.trim().isNotEmpty)
-          ? configLabel.trim()
-          : nextLabel;
+      final appliedLabel =
+          (configLabel is String && configLabel.trim().isNotEmpty)
+              ? configLabel.trim()
+              : nextLabel;
 
       return VirtualMacroButton(
         id: control.id,
@@ -609,8 +612,9 @@ class VirtualControllerLayoutEditorController extends ChangeNotifier {
       );
     }
     if (control is VirtualDpad) {
-      final enable3D =
-          (nextConfig['enable3D'] is bool) ? nextConfig['enable3D'] as bool : control.enable3D;
+      final enable3D = (nextConfig['enable3D'] is bool)
+          ? nextConfig['enable3D'] as bool
+          : control.enable3D;
       return VirtualDpad(
         id: control.id,
         label: nextLabel,
@@ -839,9 +843,10 @@ VirtualControl _cloneControlWithOverrides(
             return MacroSequenceItem.fromJson(Map<String, dynamic>.from(e));
           }).toList();
     final configLabel = nextConfig['label'];
-    final appliedLabel = (configLabel is String && configLabel.trim().isNotEmpty)
-        ? configLabel.trim()
-        : nextLabel;
+    final appliedLabel =
+        (configLabel is String && configLabel.trim().isNotEmpty)
+            ? configLabel.trim()
+            : nextLabel;
     return VirtualMacroButton(
       id: control.id,
       label: appliedLabel,
@@ -854,8 +859,9 @@ VirtualControl _cloneControlWithOverrides(
     );
   }
   if (control is VirtualDpad) {
-    final enable3D =
-        (nextConfig['enable3D'] is bool) ? nextConfig['enable3D'] as bool : control.enable3D;
+    final enable3D = (nextConfig['enable3D'] is bool)
+        ? nextConfig['enable3D'] as bool
+        : control.enable3D;
     return VirtualDpad(
       id: control.id,
       label: nextLabel,

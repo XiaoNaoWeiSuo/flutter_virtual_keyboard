@@ -182,9 +182,11 @@ class _MacroSuitePageState extends State<MacroSuitePage> {
     final warped = _steps.map((e) {
       final original = e.event;
       final laneKey = _axisLaneKeyForPreview(original);
-      final ops =
-          laneKey == null ? const <_AxisWarpOp>[] : (_axisWarpOpsByLaneKey[laneKey] ?? const []);
-      final mappedAt = ops.isEmpty ? original.atMs : mapAxisAtMs(ops, original.atMs);
+      final ops = laneKey == null
+          ? const <_AxisWarpOp>[]
+          : (_axisWarpOpsByLaneKey[laneKey] ?? const []);
+      final mappedAt =
+          ops.isEmpty ? original.atMs : mapAxisAtMs(ops, original.atMs);
       return RecordedTimelineEvent(
         atMs: mappedAt,
         type: original.type,
@@ -239,8 +241,7 @@ class _MacroSuitePageState extends State<MacroSuitePage> {
 
   List<({String downId, String upId, int startMs, int endMs})>
       _segmentsForIdentity(String identity) {
-    final ordered = _steps.toList()
-      ..sort(_compareSteps);
+    final ordered = _steps.toList()..sort(_compareSteps);
     final openDown = <String, ({String id, int atMs})>{};
     final segments = <({String downId, String upId, int startMs, int endMs})>[];
     for (final step in ordered) {
@@ -416,7 +417,8 @@ class _MacroSuitePageState extends State<MacroSuitePage> {
                                           displayDurationMs: displayDurationMs,
                                           axisWarpOpsByLaneKey:
                                               _axisWarpOpsByLaneKey,
-                                          axisSelectionSpanMs: _axisSelectionSpanMs,
+                                          axisSelectionSpanMs:
+                                              _axisSelectionSpanMs,
                                           rulerScrollController:
                                               _previewRulerScrollController,
                                           trackHorizontalScrollController:
@@ -427,8 +429,8 @@ class _MacroSuitePageState extends State<MacroSuitePage> {
                                               _previewTrackScrollController,
                                           zoom: _previewZoom,
                                           selected: _selectedSegment,
-                                          onSelectedChanged: (s) =>
-                                              setState(() => _selectedSegment = s),
+                                          onSelectedChanged: (s) => setState(
+                                              () => _selectedSegment = s),
                                           onResizeDownUp: _resizeDownUp,
                                           onAdjustAxisWarp: _adjustAxisWarp,
                                           onCommitAxisWarp: _commitAxisWarp,
@@ -617,7 +619,8 @@ class _MacroSuitePageState extends State<MacroSuitePage> {
         final slide = Tween<Offset>(
           begin: const Offset(1, 0),
           end: Offset.zero,
-        ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
+        ).animate(
+            CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
         final fade = CurvedAnimation(parent: animation, curve: Curves.easeOut);
         return FadeTransition(
           opacity: fade,
@@ -822,8 +825,9 @@ class _MacroSuitePageState extends State<MacroSuitePage> {
       final laneKey = selected.laneKey;
       final originStart =
           (selected.originStartMs ?? selected.startMs).clamp(0, 999999).toInt();
-      final originEnd =
-          (selected.originEndMs ?? selected.endMs).clamp(originStart, 999999).toInt();
+      final originEnd = (selected.originEndMs ?? selected.endMs)
+          .clamp(originStart, 999999)
+          .toInt();
       setState(() {
         _steps.removeWhere((e) {
           if (_axisLaneKeyForPreview(e.event) != laneKey) return false;
@@ -832,7 +836,8 @@ class _MacroSuitePageState extends State<MacroSuitePage> {
         });
         final opId = selected.axisWarpId;
         if (opId != null) {
-          final ops = List<_AxisWarpOp>.of(_axisWarpOpsByLaneKey[laneKey] ?? const []);
+          final ops =
+              List<_AxisWarpOp>.of(_axisWarpOpsByLaneKey[laneKey] ?? const []);
           ops.removeWhere((e) => e.id == opId);
           if (ops.isEmpty) {
             _axisWarpOpsByLaneKey.remove(laneKey);
@@ -863,7 +868,8 @@ class _MacroSuitePageState extends State<MacroSuitePage> {
     if (deltaStartMs == 0 && deltaEndMs == 0) return;
     final selected = _selectedSegment;
     if (selected == null) return;
-    final isAxisLike = selected.type == 'joystick' || selected.type == 'gamepad_axis';
+    final isAxisLike =
+        selected.type == 'joystick' || selected.type == 'gamepad_axis';
     if (!isAxisLike) return;
     if (selected.laneKey != laneKey) return;
 
@@ -892,7 +898,7 @@ class _MacroSuitePageState extends State<MacroSuitePage> {
       // it means we are just changing WHICH part of the timeline is selected.
       // The current implementation of _AxisWarpOp maps origin -> mapped.
       // If we change origin and mapped by the same amount, the mapping might shift?
-      
+
       // Let's look at mapAxisAtMs logic:
       // mapped = a.m + (t - a.o) * ratio
       // If we shift both a.o and a.m by delta:
@@ -902,7 +908,7 @@ class _MacroSuitePageState extends State<MacroSuitePage> {
       // If ratio is 1.0 (no scaling), then d - d*1 = 0.
       // new_mapped = old_mapped.
       // So if ratio is 1, the data points (t) stay at the same visual position (mapped).
-      
+
       // However, if we want to "move the selector", usually we mean:
       // The visual box moves. The data points underneath stay where they are.
       // So 'mapped' window moves. 'origin' window moves.
@@ -914,67 +920,67 @@ class _MacroSuitePageState extends State<MacroSuitePage> {
       // Point P is at t.
       // If P is NOT inside the new window, it is not warped (or warped by default shift).
       // If P IS inside the new window, it maps to...
-      
+
       // The user says "scatter points also moved".
       // This implies the Warp Op is being applied to the data points, and shifting them.
       // If we just want to MOVE THE SELECTION BOX, we should NOT create a Warp Op yet?
       // OR, the Warp Op should be Identity?
-      
+
       // If `applyAxisWarp` is true, the PreviewTimeline uses `axisWarpOps` to transform data positions.
       // If we just want to select a different range, we should NOT affect the data position yet.
       // But _adjustAxisWarp is CALLED when dragging.
       // And it updates `_axisWarpOpsByLaneKey`.
       // The `_AxisLanePainter` uses these ops to draw.
-      
+
       // If the user is just "selecting", they shouldn't be "warping".
       // Warping implies "I want to change the timing of these events".
       // Selecting implies "I want to highlight this range".
-      
+
       // If the intention of dragging the body is "Adjust Selection Range" (e.g. I missed the start by 1s),
-      // then we should just update `startMs` / `endMs` of the selection, 
+      // then we should just update `startMs` / `endMs` of the selection,
       // AND update `originStart` / `originEnd` to match?
       // BUT we should NOT produce a Warp effect that shifts data.
-      
-      // If we are in "Warp Mode" (selected.applyAxisWarp == true), 
+
+      // If we are in "Warp Mode" (selected.applyAxisWarp == true),
       // dragging the box usually means "Move the destination window".
       // i.e. "I want the events originally at X to now happen at Y".
       // If we drag the box, we are changing Y.
       // So the events move visually to Y. This is "Warping".
-      
+
       // But the user says "micro-adjust selection area".
       // This implies they think they are correcting the "Source Selection".
       // i.e. "I meant to select from 10s to 20s, not 5s to 15s".
       // In this case, we should move `originStart` and `originEnd` (the source scope).
       // AND we should probably move `startMs` / `endMs` (the visual scope) to match,
       // SO THAT NO WARPING HAPPENS (Source == Dest).
-      
+
       // If the user wants to Warp (Time-Stretch/Shift), they usually drag the HANDLES (Needles).
       // Or maybe dragging the body means "Shift Time".
-      
+
       // User said: "not move data... micro-adjust selection area".
       // This confirms they want to fix the SELECTION, not the TIMING.
-      // So we should update `originStart` / `originEnd` AND `startMs` / `endMs` 
+      // So we should update `originStart` / `originEnd` AND `startMs` / `endMs`
       // such that `origin == mapped`.
       // And we should probably clear the `axisWarpOps` or make it identity?
-      
+
       // If `applyAxisWarp` is true, we are actively warping.
       // If we want to "fix selection", we should probably disable warping temporarily?
       // Or just ensure the WarpOp created is Identity (delta = 0).
-      
+
       // Let's see.
       // `originStart` is the original time of the data we want to modify.
       // `startMs` is where we want it to be.
-      
+
       // If I drag the box right:
       // I am saying "The selection is now later".
       // If I want the data to NOT move, then the data I am selecting is DIFFERENT data (later data).
       // So `originStart` must increase.
       // And `startMs` (visual) must increase.
-      // If `origin` and `start` increase by same amount, 
+      // If `origin` and `start` increase by same amount,
       // WarpOp: origin -> start.
       // (t + d) -> (t + d).
       // This is identity. The data at (t+d) stays at (t+d).
-      
+
       // So why did the points move?
       // Maybe `originStart` was NOT updated correctly?
       // In previous code:
@@ -983,31 +989,34 @@ class _MacroSuitePageState extends State<MacroSuitePage> {
       // And created a new Op with OLD origin but NEW mapped (nextStart).
       // So Origin(T) -> Mapped(T+d).
       // This shifts data by d. THIS IS THE BUG.
-      
+
       // Fix:
       // If dragging body (panning), we must update `originStart` / `originEnd` as well!
       // So that Origin moves with Mapped.
-      
-      nextOriginStart = (selected.originStartMs ?? selected.startMs) + deltaStartMs;
+
+      nextOriginStart =
+          (selected.originStartMs ?? selected.startMs) + deltaStartMs;
       nextOriginEnd = (selected.originEndMs ?? selected.endMs) + deltaEndMs;
-      
+
       // Clamp them
       nextOriginStart = nextOriginStart.clamp(0, 999999).toInt();
       nextOriginEnd = nextOriginEnd.clamp(nextOriginStart, 999999).toInt();
-      
     } else {
       // Resizing (dragging handles).
       // Here we usually want to change the Mapped window (Time Stretch),
       // keeping the Origin window fixed (same source events).
       // So we use the existing origin.
-      nextOriginStart = (selected.originStartMs ?? selected.startMs).clamp(0, 999999).toInt();
-      nextOriginEnd = (selected.originEndMs ?? selected.endMs).clamp(nextOriginStart, 999999).toInt();
+      nextOriginStart =
+          (selected.originStartMs ?? selected.startMs).clamp(0, 999999).toInt();
+      nextOriginEnd = (selected.originEndMs ?? selected.endMs)
+          .clamp(nextOriginStart, 999999)
+          .toInt();
     }
 
     setState(() {
       final opId = selected.axisWarpId ??
           'warp_${laneKey}_${DateTime.now().microsecondsSinceEpoch}';
-      
+
       // If panning, we update both origin and mapped, so data stays put relative to timeline,
       // but the "active window" moves over new data.
       final nextOp = _AxisWarpOp(
@@ -1017,7 +1026,7 @@ class _MacroSuitePageState extends State<MacroSuitePage> {
         mappedStartMs: nextStart,
         mappedEndMs: nextEnd,
       );
-      
+
       _axisWarpOpsByLaneKey[laneKey] = [nextOp];
       _selectedSegment = _SelectedSegment(
         id: selected.id,
@@ -1061,8 +1070,7 @@ class _MacroSuitePageState extends State<MacroSuitePage> {
         final denom = (originEnd - originStart);
         if (denom == 0) return mappedStart;
         final ratio = (at - originStart) / denom;
-        final mapped =
-            mappedStart + ratio * (mappedEnd - mappedStart);
+        final mapped = mappedStart + ratio * (mappedEnd - mappedStart);
         return mapped.round().clamp(0, 999999).toInt();
       }
       final shift = mappedEnd - originEnd;
@@ -1098,9 +1106,9 @@ class _MacroSuitePageState extends State<MacroSuitePage> {
     if (deltaSpanMs == 0) return;
     final selected = _selectedSegment;
     if (selected == null) return;
-    final isAxisWindow = (selected.type == 'joystick' ||
-            selected.type == 'gamepad_axis') &&
-        selected.entryIds.isEmpty;
+    final isAxisWindow =
+        (selected.type == 'joystick' || selected.type == 'gamepad_axis') &&
+            selected.entryIds.isEmpty;
     if (!isAxisWindow) return;
 
     int unmapAxisAtMs(List<_AxisWarpOp> ops, int mappedMs) {
@@ -1180,8 +1188,7 @@ class _MacroSuitePageState extends State<MacroSuitePage> {
       final down = _steps[downIdx].event;
       final up = _steps[upIdx].event;
       final identity = _identityForEvent(down);
-      final segs =
-          identity == null ? const [] : _segmentsForIdentity(identity);
+      final segs = identity == null ? const [] : _segmentsForIdentity(identity);
       final current = segs
           .where((s) => s.downId == downId && s.upId == upId)
           .fold<({String downId, String upId, int startMs, int endMs})?>(
@@ -1258,7 +1265,8 @@ class _MacroSuitePageState extends State<MacroSuitePage> {
   String? _axisLaneKeyForPreview(RecordedTimelineEvent e) {
     switch (e.type) {
       case 'gamepad_axis':
-        final axisId = normalizeMacroInputToken(e.data['axisId']?.toString() ?? '');
+        final axisId =
+            normalizeMacroInputToken(e.data['axisId']?.toString() ?? '');
         return 'ga:$axisId';
       case 'joystick':
         return 'j:virtual';

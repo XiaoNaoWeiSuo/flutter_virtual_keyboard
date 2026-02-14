@@ -33,7 +33,8 @@ class _SystemUiModeScopeState extends State<SystemUiModeScope> {
   @override
   void didUpdateWidget(SystemUiModeScope oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.mode != widget.mode || oldWidget.overlays != widget.overlays) {
+    if (oldWidget.mode != widget.mode ||
+        oldWidget.overlays != widget.overlays) {
       _SystemUiModeStack.update(
         _token,
         mode: widget.mode,
@@ -72,7 +73,8 @@ class _SystemUiModeStack {
     required SystemUiMode? mode,
     required List<SystemUiOverlay>? overlays,
   }) {
-    _stack.add(_SystemUiModeEntry(token: token, mode: mode, overlays: overlays));
+    _stack
+        .add(_SystemUiModeEntry(token: token, mode: mode, overlays: overlays));
     _applyTop();
   }
 
@@ -83,7 +85,8 @@ class _SystemUiModeStack {
   }) {
     final index = _stack.indexWhere((e) => e.token == token);
     if (index < 0) return;
-    _stack[index] = _SystemUiModeEntry(token: token, mode: mode, overlays: overlays);
+    _stack[index] =
+        _SystemUiModeEntry(token: token, mode: mode, overlays: overlays);
     _applyTop();
   }
 
@@ -107,4 +110,3 @@ class _SystemUiModeStack {
     SystemChrome.setEnabledSystemUIMode(mode);
   }
 }
-

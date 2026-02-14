@@ -39,7 +39,8 @@ VirtualControl? dynamicControlFromId(
         id: id,
         label: button == MouseButtonId.middle ? 'M' : button.code,
         layout: layout,
-        trigger: button == MouseButtonId.right ? TriggerType.hold : TriggerType.tap,
+        trigger:
+            button == MouseButtonId.right ? TriggerType.hold : TriggerType.tap,
         button: button,
         config: const {},
       );

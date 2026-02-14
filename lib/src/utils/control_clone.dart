@@ -157,4 +157,3 @@ VirtualControl cloneControlWithOverrides(
   }
   return control;
 }
-

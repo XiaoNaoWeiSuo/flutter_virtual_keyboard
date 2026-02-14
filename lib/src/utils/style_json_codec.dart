@@ -232,7 +232,8 @@ class _JSONIconData implements IconData {
   final bool matchTextDirection;
 
   @override
-  int get hashCode => Object.hash(codePoint, fontFamily, fontPackage, matchTextDirection);
+  int get hashCode =>
+      Object.hash(codePoint, fontFamily, fontPackage, matchTextDirection);
 
   @override
   bool operator ==(Object other) {

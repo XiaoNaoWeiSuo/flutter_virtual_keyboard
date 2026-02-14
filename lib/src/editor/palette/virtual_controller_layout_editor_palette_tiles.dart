@@ -45,4 +45,3 @@ class _PaletteTile extends StatelessWidget {
     );
   }
 }
-

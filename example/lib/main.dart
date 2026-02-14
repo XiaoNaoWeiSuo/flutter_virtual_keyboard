@@ -28,7 +28,9 @@ class MyApp extends StatelessWidget {
           surface: Colors.white,
           onSurface: Colors.black87,
         ),
-        scaffoldBackgroundColor: const Color(0xFFF5F5F7), // Apple-like light gray
+        scaffoldBackgroundColor: const Color(
+          0xFFF5F5F7,
+        ), // Apple-like light gray
         useMaterial3: true,
         appBarTheme: const AppBarTheme(
           backgroundColor: Colors.white,
@@ -101,7 +103,12 @@ class _LayoutManagerPageState extends State<LayoutManagerPage> {
       VirtualJoystick(
         id: 'joy_wasd',
         label: '',
-        layout: const ControlLayout(x: 0.08, y: 0.55, width: 0.22, height: 0.34),
+        layout: const ControlLayout(
+          x: 0.08,
+          y: 0.55,
+          width: 0.22,
+          height: 0.34,
+        ),
         trigger: TriggerType.hold,
         keys: const [
           KeyboardKey('W'),
@@ -117,21 +124,36 @@ class _LayoutManagerPageState extends State<LayoutManagerPage> {
       VirtualButton(
         id: 'btn_a',
         label: 'A',
-        layout: const ControlLayout(x: 0.78, y: 0.63, width: 0.12, height: 0.12),
+        layout: const ControlLayout(
+          x: 0.78,
+          y: 0.63,
+          width: 0.12,
+          height: 0.12,
+        ),
         trigger: TriggerType.hold,
         binding: const GamepadButtonBinding(GamepadButtonId.a),
       ),
       VirtualButton(
         id: 'btn_b',
         label: 'B',
-        layout: const ControlLayout(x: 0.88, y: 0.55, width: 0.12, height: 0.12),
+        layout: const ControlLayout(
+          x: 0.88,
+          y: 0.55,
+          width: 0.12,
+          height: 0.12,
+        ),
         trigger: TriggerType.hold,
         binding: const GamepadButtonBinding(GamepadButtonId.b),
       ),
       VirtualMacroButton(
         id: 'macro_combo',
         label: '连招',
-        layout: const ControlLayout(x: 0.78, y: 0.40, width: 0.22, height: 0.10),
+        layout: const ControlLayout(
+          x: 0.78,
+          y: 0.40,
+          width: 0.22,
+          height: 0.10,
+        ),
         trigger: TriggerType.tap,
         config: const {},
         sequence: const [],
@@ -149,7 +171,7 @@ class _LayoutManagerPageState extends State<LayoutManagerPage> {
     await _repo.init();
     final ids = await _repo.listIds();
     final selected = await _repo.getSelectedId() ?? ids.first;
-    
+
     // Load all names
     final names = <String, String>{};
     for (final id in ids) {
@@ -179,7 +201,7 @@ class _LayoutManagerPageState extends State<LayoutManagerPage> {
     final id = await _repo.create(baseId: duplicate ? _selectedId : null);
     final ids = await _repo.listIds();
     final state = await _repo.loadState(id);
-    
+
     await _select(id);
     if (!mounted) return;
     setState(() {
@@ -446,7 +468,8 @@ class _LayoutManagerPageState extends State<LayoutManagerPage> {
                                             _stateRevision++;
                                             final newNames =
                                                 Map<String, String>.from(
-                                                    _names);
+                                                  _names,
+                                                );
                                             newNames[id] = state.name ?? id;
                                             _names = newNames;
                                           });
@@ -463,7 +486,8 @@ class _LayoutManagerPageState extends State<LayoutManagerPage> {
                                   else
                                     FutureBuilder<VirtualControllerState>(
                                       key: ValueKey(
-                                          'overlay_${selected}_$_stateRevision'),
+                                        'overlay_${selected}_$_stateRevision',
+                                      ),
                                       future: _repo.loadState(selected),
                                       builder: (context, snapshot) {
                                         final state = snapshot.data;
@@ -557,8 +581,9 @@ class _Sidebar extends StatelessWidget {
                     title: Text(
                       name,
                       style: TextStyle(
-                        fontWeight:
-                            isSelected ? FontWeight.w600 : FontWeight.normal,
+                        fontWeight: isSelected
+                            ? FontWeight.w600
+                            : FontWeight.normal,
                         color: isSelected ? Colors.black : Colors.black87,
                         fontSize: 14,
                       ),
@@ -598,13 +623,21 @@ class _Sidebar extends StatelessWidget {
                 MenuAnchor(
                   style: MenuStyle(
                     backgroundColor: const WidgetStatePropertyAll(Colors.white),
-                    surfaceTintColor: const WidgetStatePropertyAll(Colors.white),
-                    padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(vertical: 8)),
+                    surfaceTintColor: const WidgetStatePropertyAll(
+                      Colors.white,
+                    ),
+                    padding: const WidgetStatePropertyAll(
+                      EdgeInsets.symmetric(vertical: 8),
+                    ),
                     shape: WidgetStatePropertyAll(
-                      RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                     elevation: const WidgetStatePropertyAll(6),
-                    shadowColor: WidgetStatePropertyAll(Colors.black.withValues(alpha: 0.2)),
+                    shadowColor: WidgetStatePropertyAll(
+                      Colors.black.withValues(alpha: 0.2),
+                    ),
                   ),
                   builder: (context, controller, child) {
                     return _SidebarButton(
@@ -682,7 +715,13 @@ class _SidebarButtonState extends State<_SidebarButton> {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           child: Row(
             children: [
-              Icon(widget.icon, size: 20, color: widget.textColor == Colors.blue ? Colors.blue : Colors.black54),
+              Icon(
+                widget.icon,
+                size: 20,
+                color: widget.textColor == Colors.blue
+                    ? Colors.blue
+                    : Colors.black54,
+              ),
               const SizedBox(width: 12),
               Text(
                 widget.label,
@@ -725,7 +764,8 @@ class _MenuItem extends StatelessWidget {
           return null;
         }),
         padding: const WidgetStatePropertyAll(
-            EdgeInsets.symmetric(horizontal: 16, vertical: 12)),
+          EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        ),
         minimumSize: const WidgetStatePropertyAll(Size(200, 40)),
       ),
       leadingIcon: Icon(
@@ -809,17 +849,9 @@ class _Toolbar extends StatelessWidget {
               ),
             ),
             const VerticalDivider(indent: 12, endIndent: 12, width: 32),
-            _SizeInput(
-              label: 'W',
-              value: width,
-              onChanged: onWidthChanged,
-            ),
+            _SizeInput(label: 'W', value: width, onChanged: onWidthChanged),
             const SizedBox(width: 16),
-            _SizeInput(
-              label: 'H',
-              value: height,
-              onChanged: onHeightChanged,
-            ),
+            _SizeInput(label: 'H', value: height, onChanged: onHeightChanged),
             const SizedBox(width: 16),
             SegmentedButton<bool>(
               segments: const [
@@ -886,7 +918,10 @@ class _SizeInputState extends State<_SizeInput> {
         decoration: InputDecoration(
           labelText: widget.label,
           border: const OutlineInputBorder(),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 8,
+            vertical: 0,
+          ),
           isDense: true,
         ),
         onSubmitted: (v) {
@@ -988,7 +1023,11 @@ class _LayoutRepo {
       ids,
     );
     final state = baseId == null
-        ? VirtualControllerState(schemaVersion: 1, controls: [], name: 'unnamed')
+        ? VirtualControllerState(
+            schemaVersion: 1,
+            controls: [],
+            name: 'unnamed',
+          )
         : await loadState(baseId);
     await _store.setString(_kIds, jsonEncode([...ids, id]));
     await saveState(id, state);

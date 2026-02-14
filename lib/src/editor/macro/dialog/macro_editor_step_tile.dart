@@ -162,4 +162,3 @@ class _MacroStepTile extends StatelessWidget {
     }
   }
 }
-

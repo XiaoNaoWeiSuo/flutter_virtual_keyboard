@@ -106,7 +106,8 @@ class _TopBubble extends StatelessWidget {
                 const SizedBox(width: 6),
                 IconButton(
                   onPressed: () => onAdjustAxisWindowSpan(-100),
-                  icon: const Icon(Icons.remove, color: Colors.white70, size: 14),
+                  icon:
+                      const Icon(Icons.remove, color: Colors.white70, size: 14),
                   visualDensity: VisualDensity.compact,
                   tooltip: '缩小选区',
                 ),
@@ -413,7 +414,8 @@ class _ToolTile extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Icon(icon, color: Colors.white70, size: 18),
-              Text(title, style: const TextStyle(color: Colors.white,fontSize: 14)),
+              Text(title,
+                  style: const TextStyle(color: Colors.white, fontSize: 14)),
             ],
           ),
         ),

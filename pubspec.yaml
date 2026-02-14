@@ -9,16 +9,6 @@ issue_tracker: https://github.com/XiaoNaoWeiSuo/flutter_virtual_keyboard/issues
 screenshots:
   - description: "Package icon"
     path: resource/package_icon.png
-  - description: "Runtime layout editor"
-    path: resource/layout_editor.jpg
-  - description: "Macro editor demo (GIF)"
-    path: resource/macro_editor_demo.gif
-  - description: "Macro recorder"
-    path: resource/macro_recorder.jpg
-  - description: "Gamepad buttons showcase"
-    path: resource/gamepad_buttons.png
-  - description: "Keyboard controls showcase"
-    path: resource/keyboard.png
 environment:
   sdk: ">=3.0.0 <4.0.0"
 

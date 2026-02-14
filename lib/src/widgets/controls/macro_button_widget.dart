@@ -20,7 +20,8 @@ class VirtualMacroButtonWidget extends StatefulWidget {
   final bool showLabel;
 
   @override
-  State<VirtualMacroButtonWidget> createState() => _VirtualMacroButtonWidgetState();
+  State<VirtualMacroButtonWidget> createState() =>
+      _VirtualMacroButtonWidgetState();
 }
 
 class _VirtualMacroButtonWidgetState extends State<VirtualMacroButtonWidget> {

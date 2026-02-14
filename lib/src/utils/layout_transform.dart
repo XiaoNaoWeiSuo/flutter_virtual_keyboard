@@ -25,4 +25,3 @@ ControlLayout layoutWithAspectRatio(
 ControlLayout layoutSquare(ControlLayout layout, {bool lockHeight = true}) {
   return layoutWithAspectRatio(layout, 1.0, lockHeight: lockHeight);
 }
-

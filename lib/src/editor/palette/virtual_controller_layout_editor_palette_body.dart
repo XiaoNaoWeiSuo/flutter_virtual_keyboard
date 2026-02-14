@@ -238,7 +238,8 @@ class _MouseJoystickPalette extends StatelessWidget {
               ),
             ),
             squareTile(
-              onTap: () => onAdd(EditorControlFactory.mouseButton(MouseButtonId.middle)),
+              onTap: () =>
+                  onAdd(EditorControlFactory.mouseButton(MouseButtonId.middle)),
               child: VirtualMouseButtonWidget(
                 control: previewMap['mouse_middle'] as VirtualMouseButton,
                 onInputEvent: (_) {},
@@ -350,10 +351,12 @@ class _GamepadPalette extends StatelessWidget {
                   child: Column(
                     children: [
                       Expanded(
-                        child: SizedBox(height: rowHeight, child: buildRow(row2)),
+                        child:
+                            SizedBox(height: rowHeight, child: buildRow(row2)),
                       ),
                       Expanded(
-                        child: SizedBox(height: rowHeight, child: buildRow(row3)),
+                        child:
+                            SizedBox(height: rowHeight, child: buildRow(row3)),
                       ),
                     ],
                   ),

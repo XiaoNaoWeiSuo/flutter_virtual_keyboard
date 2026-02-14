@@ -12,4 +12,3 @@ class DefaultVirtualControlTheme extends VirtualControlTheme {
   @override
   VirtualControl decorate(VirtualControl control) => control;
 }
-

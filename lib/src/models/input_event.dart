@@ -94,12 +94,14 @@ class MouseWheelInputEvent extends InputEvent {
 
   /// Create a scroll up event
   factory MouseWheelInputEvent.up([int delta = 3]) {
-    return MouseWheelInputEvent(direction: MouseWheelDirection.up, delta: delta);
+    return MouseWheelInputEvent(
+        direction: MouseWheelDirection.up, delta: delta);
   }
 
   /// Create a scroll down event
   factory MouseWheelInputEvent.down([int delta = 3]) {
-    return MouseWheelInputEvent(direction: MouseWheelDirection.down, delta: delta);
+    return MouseWheelInputEvent(
+        direction: MouseWheelDirection.down, delta: delta);
   }
   final MouseWheelDirection direction;
   final int delta;

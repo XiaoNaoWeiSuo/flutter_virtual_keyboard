@@ -58,8 +58,8 @@ class VirtualControllerState {
       schemaVersion: json['schemaVersion'] as int? ?? 1,
       controls: controlsJson
           .whereType<Map>()
-          .map((c) =>
-              VirtualControlState.fromJson(Map<String, dynamic>.from(c)))
+          .map(
+              (c) => VirtualControlState.fromJson(Map<String, dynamic>.from(c)))
           .where((c) => c.config['deleted'] != true)
           .toList(),
       name: json['name'] as String?,

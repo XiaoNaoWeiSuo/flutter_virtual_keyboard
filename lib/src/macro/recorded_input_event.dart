@@ -138,7 +138,8 @@ class RecordedInputEvent {
         final key = data['key'] as String?;
         final isDown = data['isDown'] as bool?;
         if (key == null || isDown == null) return null;
-        final modifiersRaw = List<String>.from(data['modifiers'] as List? ?? const []);
+        final modifiersRaw =
+            List<String>.from(data['modifiers'] as List? ?? const []);
         final modifiers = modifiersRaw
             .map((e) => KeyboardKey(e).normalized())
             .where((k) => k.code.trim().isNotEmpty && k.code != 'null')
@@ -195,7 +196,8 @@ class RecordedInputEvent {
         final dx = (data['dx'] as num?)?.toDouble();
         final dy = (data['dy'] as num?)?.toDouble();
         if (dx == null || dy == null) return null;
-        final rawKeys = List<String>.from(data['activeKeys'] as List? ?? const []);
+        final rawKeys =
+            List<String>.from(data['activeKeys'] as List? ?? const []);
         final activeKeys = rawKeys
             .map((e) => KeyboardKey(e).normalized())
             .where((k) => k.code.trim().isNotEmpty && k.code != 'null')

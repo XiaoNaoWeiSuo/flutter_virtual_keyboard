@@ -38,4 +38,3 @@ class RuleBasedVirtualControlTheme extends VirtualControlTheme {
     return c;
   }
 }
-

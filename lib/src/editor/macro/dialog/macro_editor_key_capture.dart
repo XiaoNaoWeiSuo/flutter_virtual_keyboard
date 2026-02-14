@@ -6,12 +6,14 @@ List<String> _currentModifierCodes({LogicalKeyboardKey? excluding}) {
 
   final codes = <String>[];
 
-  final ctrl =
-      has(LogicalKeyboardKey.controlLeft) || has(LogicalKeyboardKey.controlRight);
+  final ctrl = has(LogicalKeyboardKey.controlLeft) ||
+      has(LogicalKeyboardKey.controlRight);
   final shift =
       has(LogicalKeyboardKey.shiftLeft) || has(LogicalKeyboardKey.shiftRight);
-  final alt = has(LogicalKeyboardKey.altLeft) || has(LogicalKeyboardKey.altRight);
-  final meta = has(LogicalKeyboardKey.metaLeft) || has(LogicalKeyboardKey.metaRight);
+  final alt =
+      has(LogicalKeyboardKey.altLeft) || has(LogicalKeyboardKey.altRight);
+  final meta =
+      has(LogicalKeyboardKey.metaLeft) || has(LogicalKeyboardKey.metaRight);
 
   if (ctrl) codes.add('Ctrl');
   if (shift) codes.add('Shift');
@@ -22,7 +24,8 @@ List<String> _currentModifierCodes({LogicalKeyboardKey? excluding}) {
 
 String? _toKeyCode(LogicalKeyboardKey key) {
   if (key == LogicalKeyboardKey.escape) return 'Esc';
-  if (key == LogicalKeyboardKey.enter || key == LogicalKeyboardKey.numpadEnter) {
+  if (key == LogicalKeyboardKey.enter ||
+      key == LogicalKeyboardKey.numpadEnter) {
     return 'Enter';
   }
   if (key == LogicalKeyboardKey.backspace) return 'Backspace';
@@ -34,7 +37,8 @@ String? _toKeyCode(LogicalKeyboardKey key) {
   if (key == LogicalKeyboardKey.arrowLeft) return 'ArrowLeft';
   if (key == LogicalKeyboardKey.arrowRight) return 'ArrowRight';
 
-  if (key == LogicalKeyboardKey.shiftLeft || key == LogicalKeyboardKey.shiftRight) {
+  if (key == LogicalKeyboardKey.shiftLeft ||
+      key == LogicalKeyboardKey.shiftRight) {
     return 'Shift';
   }
   if (key == LogicalKeyboardKey.controlLeft ||
@@ -44,7 +48,8 @@ String? _toKeyCode(LogicalKeyboardKey key) {
   if (key == LogicalKeyboardKey.altLeft || key == LogicalKeyboardKey.altRight) {
     return 'Alt';
   }
-  if (key == LogicalKeyboardKey.metaLeft || key == LogicalKeyboardKey.metaRight) {
+  if (key == LogicalKeyboardKey.metaLeft ||
+      key == LogicalKeyboardKey.metaRight) {
     return 'Meta';
   }
 
@@ -59,4 +64,3 @@ String? _toKeyCode(LogicalKeyboardKey key) {
   if (name == null || name.isEmpty) return null;
   return name;
 }
-

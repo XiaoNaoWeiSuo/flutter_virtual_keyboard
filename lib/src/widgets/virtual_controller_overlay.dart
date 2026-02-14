@@ -121,9 +121,11 @@ class _VirtualControllerOverlayState extends State<VirtualControllerOverlay> {
       final s = stateById[control.id];
       final layout = s?.layout ?? control.layout;
       final opacity = (s?.opacity ?? 1.0).clamp(0.0, 1.0);
-      final effectiveControl = widget.theme.decorate(_applyStateToControl(control, s));
+      final effectiveControl =
+          widget.theme.decorate(_applyStateToControl(control, s));
       if (control is VirtualKeyCluster) {
-        final keys = (effectiveControl as VirtualKeyCluster).expandToKeys(layout);
+        final keys =
+            (effectiveControl as VirtualKeyCluster).expandToKeys(layout);
         for (final k in keys) {
           resolved.add(_ResolvedControl(
             control: widget.theme.decorate(k),
@@ -142,9 +144,11 @@ class _VirtualControllerOverlayState extends State<VirtualControllerOverlay> {
 
     for (final s in state.controls) {
       if (definitionIds.contains(s.id)) continue;
-      final dynamic = dynamicControlFromId(s.id, s.layout, runtimeDefaults: true);
+      final dynamic =
+          dynamicControlFromId(s.id, s.layout, runtimeDefaults: true);
       if (dynamic == null) continue;
-      final effectiveDynamic = widget.theme.decorate(_applyStateToControl(dynamic, s));
+      final effectiveDynamic =
+          widget.theme.decorate(_applyStateToControl(dynamic, s));
       resolved.add(_ResolvedControl(
         control: effectiveDynamic,
         layout: s.layout,
@@ -345,9 +349,10 @@ VirtualControl _applyStateToControl(
             return MacroSequenceItem.fromJson(Map<String, dynamic>.from(e));
           }).toList();
     final configLabel = mergedConfig['label'];
-    final appliedLabel = (configLabel is String && configLabel.trim().isNotEmpty)
-        ? configLabel.trim()
-        : control.label;
+    final appliedLabel =
+        (configLabel is String && configLabel.trim().isNotEmpty)
+            ? configLabel.trim()
+            : control.label;
     return VirtualMacroButton(
       id: control.id,
       label: appliedLabel,

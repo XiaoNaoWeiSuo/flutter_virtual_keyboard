@@ -15,7 +15,8 @@ class _RecordButton extends StatelessWidget {
       onPressed: onToggle,
       style: OutlinedButton.styleFrom(
         foregroundColor: isRecording ? Colors.redAccent : Colors.white70,
-        side: BorderSide(color: isRecording ? Colors.redAccent : Colors.white24),
+        side:
+            BorderSide(color: isRecording ? Colors.redAccent : Colors.white24),
       ),
       icon: Icon(isRecording ? Icons.stop : Icons.fiber_manual_record),
       label: Text(isRecording ? '停止录制' : '开始录制'),
@@ -82,8 +83,8 @@ class _NumberEditDialogState extends State<_NumberEditDialog> {
         style: const TextStyle(color: Colors.white),
         autofocus: true,
         decoration: const InputDecoration(
-          enabledBorder:
-              UnderlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
+          enabledBorder: UnderlineInputBorder(
+              borderSide: BorderSide(color: Colors.white24)),
         ),
       ),
       actions: [
@@ -96,7 +97,8 @@ class _NumberEditDialogState extends State<_NumberEditDialog> {
             final v = int.tryParse(_controller.text);
             if (v != null) Navigator.of(context).pop(v);
           },
-          child: const Text('确定', style: TextStyle(color: Colors.lightBlueAccent)),
+          child:
+              const Text('确定', style: TextStyle(color: Colors.lightBlueAccent)),
         ),
       ],
     );
@@ -137,8 +139,8 @@ class _TextEditDialogState extends State<_TextEditDialog> {
         style: const TextStyle(color: Colors.white),
         autofocus: true,
         decoration: const InputDecoration(
-          enabledBorder:
-              UnderlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
+          enabledBorder: UnderlineInputBorder(
+              borderSide: BorderSide(color: Colors.white24)),
         ),
       ),
       actions: [
@@ -157,4 +159,3 @@ class _TextEditDialogState extends State<_TextEditDialog> {
     );
   }
 }
-

@@ -171,7 +171,7 @@ class _VirtualJoystickWidgetState extends State<VirtualJoystickWidget> {
                       : _isStickClickDown
                           ? Icon(Icons.sports_esports,
                               color: clickColor, size: 14)
-                      : null,
+                          : null,
                 ),
               ),
             ],
@@ -238,8 +238,7 @@ class _VirtualJoystickWidgetState extends State<VirtualJoystickWidget> {
     final useGamepad = widget.control.mode == JoystickMode.gamepad;
     final stickClickEnabled =
         widget.control.config['stickClickEnabled'] == true;
-    final stickLockEnabled =
-        widget.control.config['stickLockEnabled'] == true;
+    final stickLockEnabled = widget.control.config['stickLockEnabled'] == true;
 
     final size = context.size;
     if (size == null) return;
@@ -411,8 +410,9 @@ class _VirtualJoystickWidgetState extends State<VirtualJoystickWidget> {
       }
     });
     final stickId = widget.control.stickType;
-    final buttonId =
-        stickId == GamepadStickId.right ? GamepadButtonId.r3 : GamepadButtonId.l3;
+    final buttonId = stickId == GamepadStickId.right
+        ? GamepadButtonId.r3
+        : GamepadButtonId.l3;
     widget.onInputEvent(
       down
           ? GamepadButtonInputEvent.down(buttonId)

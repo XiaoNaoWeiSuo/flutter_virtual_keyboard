@@ -138,7 +138,6 @@ class _MacroEditorDialogState extends State<MacroEditorDialog> {
     );
   }
 
-
   Widget _buildEmptyState() {
     return Center(
       child: Column(
@@ -185,11 +184,21 @@ class _MacroEditorDialogState extends State<MacroEditorDialog> {
             tooltip: '添加指令',
             color: const Color(0xFF2C2C2E),
             itemBuilder: (context) => [
-              const PopupMenuItem(value: 'key_down', child: Text('按下按键', style: TextStyle(color: Colors.white))),
-              const PopupMenuItem(value: 'key_up', child: Text('抬起按键', style: TextStyle(color: Colors.white))),
-              const PopupMenuItem(value: 'delay', child: Text('延时', style: TextStyle(color: Colors.white))),
-              const PopupMenuItem(value: 'mouse_down', child: Text('鼠标按下', style: TextStyle(color: Colors.white))),
-              const PopupMenuItem(value: 'mouse_up', child: Text('鼠标抬起', style: TextStyle(color: Colors.white))),
+              const PopupMenuItem(
+                  value: 'key_down',
+                  child: Text('按下按键', style: TextStyle(color: Colors.white))),
+              const PopupMenuItem(
+                  value: 'key_up',
+                  child: Text('抬起按键', style: TextStyle(color: Colors.white))),
+              const PopupMenuItem(
+                  value: 'delay',
+                  child: Text('延时', style: TextStyle(color: Colors.white))),
+              const PopupMenuItem(
+                  value: 'mouse_down',
+                  child: Text('鼠标按下', style: TextStyle(color: Colors.white))),
+              const PopupMenuItem(
+                  value: 'mouse_up',
+                  child: Text('鼠标抬起', style: TextStyle(color: Colors.white))),
             ],
             onSelected: (value) {
               if (value == 'delay') {

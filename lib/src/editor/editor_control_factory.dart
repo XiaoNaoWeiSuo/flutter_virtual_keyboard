@@ -72,13 +72,15 @@ class EditorControlFactory {
     );
   }
 
-  static VirtualMouseButton mouseButton(MouseButtonId button, {ControlLayout? layout}) {
+  static VirtualMouseButton mouseButton(MouseButtonId button,
+      {ControlLayout? layout}) {
     return VirtualMouseButton(
       id: 'mouse_${button.code}_${DateTime.now().microsecondsSinceEpoch}',
       label: button.code,
       layout: layout ??
           const ControlLayout(x: 0.75, y: 0.65, width: 0.1, height: 0.15),
-      trigger: button == MouseButtonId.right ? TriggerType.hold : TriggerType.tap,
+      trigger:
+          button == MouseButtonId.right ? TriggerType.hold : TriggerType.tap,
       button: button,
       config: {},
     );
@@ -95,7 +97,8 @@ class EditorControlFactory {
     );
   }
 
-  static VirtualMouseWheel mouseWheel(MouseWheelDirection direction, {ControlLayout? layout}) {
+  static VirtualMouseWheel mouseWheel(MouseWheelDirection direction,
+      {ControlLayout? layout}) {
     return VirtualMouseWheel(
       id: 'wheel_${direction.code}_${DateTime.now().microsecondsSinceEpoch}',
       label: direction == MouseWheelDirection.up ? '滑轮上' : '滑轮下',

@@ -54,9 +54,8 @@ class MacroRecorderController extends ChangeNotifier {
     _steps
       ..clear()
       ..addAll(
-        jsonList
-            .whereType<Map>()
-            .map((e) => RecordedTimelineEvent.fromJson(Map<String, dynamic>.from(e))),
+        jsonList.whereType<Map>().map((e) =>
+            RecordedTimelineEvent.fromJson(Map<String, dynamic>.from(e))),
       );
     notifyListeners();
   }
