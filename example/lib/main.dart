@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show Clipboard, ClipboardData;
+import 'package:flutter/services.dart' show Clipboard, ClipboardData, rootBundle;
 import 'package:virtual_gamepad_pro/virtual_gamepad_pro.dart';
 
 import 'platform/file_io.dart';
@@ -96,69 +96,12 @@ class _LayoutManagerPageState extends State<LayoutManagerPage> {
     'Custom': Size.zero,
   };
 
+  static const VirtualControlTheme _theme = DefaultVirtualControlTheme();
+
   final VirtualControllerLayout _definition = VirtualControllerLayout(
     schemaVersion: 1,
     name: 'unnamed',
-    controls: [
-      VirtualJoystick(
-        id: 'joy_wasd',
-        label: '',
-        layout: const ControlLayout(
-          x: 0.08,
-          y: 0.55,
-          width: 0.22,
-          height: 0.34,
-        ),
-        trigger: TriggerType.hold,
-        keys: const [
-          KeyboardKey('W'),
-          KeyboardKey('A'),
-          KeyboardKey('S'),
-          KeyboardKey('D'),
-        ],
-        config: const {
-          'overlayLabels': ['W', 'A', 'S', 'D'],
-          'overlayStyle': 'quadrant',
-        },
-      ),
-      VirtualButton(
-        id: 'btn_a',
-        label: 'A',
-        layout: const ControlLayout(
-          x: 0.78,
-          y: 0.63,
-          width: 0.12,
-          height: 0.12,
-        ),
-        trigger: TriggerType.hold,
-        binding: const GamepadButtonBinding(GamepadButtonId.a),
-      ),
-      VirtualButton(
-        id: 'btn_b',
-        label: 'B',
-        layout: const ControlLayout(
-          x: 0.88,
-          y: 0.55,
-          width: 0.12,
-          height: 0.12,
-        ),
-        trigger: TriggerType.hold,
-        binding: const GamepadButtonBinding(GamepadButtonId.b),
-      ),
-      VirtualMacroButton(
-        id: 'macro_combo',
-        label: '连招',
-        layout: const ControlLayout(
-          x: 0.78,
-          y: 0.40,
-          width: 0.22,
-          height: 0.10,
-        ),
-        trigger: TriggerType.tap,
-        config: const {},
-        sequence: const [],
-      ),
-    ],
+    controls: [],
   );
 
   @override
@@ -475,6 +418,8 @@ class _LayoutManagerPageState extends State<LayoutManagerPage> {
                                           });
                                         }
                                       },
+                                      previewDecorator: (layout) =>
+                                          layout.mapControls(_theme.decorate),
                                       onClose: _toggleEdit,
                                       allowMove: true,
                                       allowResize: true,
@@ -501,9 +446,15 @@ class _LayoutManagerPageState extends State<LayoutManagerPage> {
                                             ),
                                           );
                                         }
+                                        final definition = buildDefinitionFromState(
+                                          state,
+                                          runtimeDefaults: true,
+                                          fallbackName: _definition.name,
+                                        );
                                         return VirtualControllerOverlay(
-                                          definition: _definition,
+                                          definition: definition,
                                           state: state,
+                                          theme: _theme,
                                           onInputEvent: (_) {},
                                           opacity: 1.0,
                                           showLabels: true,
@@ -969,11 +920,39 @@ class _LayoutRepo {
   static const _kIds = 'vkp_layout_ids';
   static const _kSelected = 'vkp_selected_id';
   static const _kPrefix = 'vkp_state_';
+  static const _kSampleStateAssetPath = 'lib/PS.state.json';
+  static const _kSeededSample = 'vkp_seeded_sample_v1';
 
   Future<void> init() async {
+    final seeded = _store.getString(_kSeededSample) == '1';
+    if (!seeded) {
+      final existingIds = await listIds();
+      final prevSelected = await getSelectedId();
+      final sample = await _loadBundledSampleState();
+      if (sample != null) {
+        await importAs(sample.name ?? 'PS', sample);
+        if (existingIds.isNotEmpty) {
+          final keep = prevSelected ?? existingIds.first;
+          await setSelectedId(keep);
+        }
+      }
+      await _store.setString(_kSeededSample, '1');
+    }
+
     final ids = await listIds();
     if (ids.isNotEmpty) return;
     await create();
+  }
+
+  Future<VirtualControllerState?> _loadBundledSampleState() async {
+    try {
+      final raw = await rootBundle.loadString(_kSampleStateAssetPath);
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return null;
+      return VirtualControllerState.fromJson(Map<String, dynamic>.from(decoded));
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<List<String>> listIds() async {

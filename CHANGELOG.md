@@ -1,3 +1,6 @@
+## 0.3.1
+- **Feat**: Update documentation for `VirtualControllerOverlay` and `VirtualControllerTheme`.
+
 ## 0.3.0
 - **Feat**: Introduced `VirtualControlTheme` + rule-based theming (`RuleBasedVirtualControlTheme`, `ControlMatchers`) and applied it in `VirtualControllerOverlay`.
 - **Feat**: Added `identifiers.dart` (typed enums + robust `parse/tryParse`) for mouse buttons, wheel direction, joystick mode, stick/axis identifiers.

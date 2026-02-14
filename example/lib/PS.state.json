@@ -1,0 +1,147 @@
+{
+  "schemaVersion": 1,
+  "controls": [
+    {
+      "id": "joystick_gamepad_left_1770958903116000",
+      "layout": {
+        "x": 0.225791,
+        "y": 0.622415,
+        "width": 0.154681,
+        "height": 0.335263
+      },
+      "opacity": 0.52,
+      "config": {
+        "stickClickEnabled": true,
+        "stickLockEnabled": true
+      }
+    },
+    {
+      "id": "joystick_gamepad_right_1770958934384000",
+      "layout": {
+        "x": 0.59375,
+        "y": 0.640685,
+        "width": 0.149582,
+        "height": 0.324211
+      },
+      "opacity": 0.525,
+      "config": {
+        "stickClickEnabled": false,
+        "stickLockEnabled": false
+      }
+    },
+    {
+      "id": "dpad_1770958961584000",
+      "layout": {
+        "x": 0.099631,
+        "y": 0.269339,
+        "width": 0.114129,
+        "height": 0.247368
+      },
+      "opacity": 0.77,
+      "config": {
+        "enable3D": true
+      }
+    },
+    {
+      "id": "btn_triangle_1770958994215000",
+      "layout": {
+        "x": 0.798412,
+        "y": 0.210465,
+        "width": 0.055365,
+        "height": 0.12
+      },
+      "opacity": 0.53
+    },
+    {
+      "id": "btn_circle_1770959009651000",
+      "layout": {
+        "x": 0.845622,
+        "y": 0.312791,
+        "width": 0.055365,
+        "height": 0.12
+      },
+      "opacity": 0.51
+    },
+    {
+      "id": "btn_square_1770959026687000",
+      "layout": {
+        "x": 0.753348,
+        "y": 0.317442,
+        "width": 0.055365,
+        "height": 0.12
+      },
+      "opacity": 0.55
+    },
+    {
+      "id": "btn_cross_1770959045703000",
+      "layout": {
+        "x": 0.799485,
+        "y": 0.419767,
+        "width": 0.055365,
+        "height": 0.12
+      },
+      "opacity": 0.545
+    },
+    {
+      "id": "btn_l1_1770959103889000",
+      "layout": {
+        "x": 0.702455,
+        "y": 0.014113,
+        "width": 0.067021,
+        "height": 0.145263
+      },
+      "opacity": 0.51
+    },
+    {
+      "id": "btn_l2_1770959135450000",
+      "layout": {
+        "x": 0.780172,
+        "y": 0.02907,
+        "width": 0.055365,
+        "height": 0.12
+      },
+      "opacity": 0.54
+    },
+    {
+      "id": "btn_r1_1770959146700000",
+      "layout": {
+        "x": 0.252885,
+        "y": 0.011787,
+        "width": 0.067021,
+        "height": 0.145263
+      },
+      "opacity": 0.515
+    },
+    {
+      "id": "btn_r2_1770959163251000",
+      "layout": {
+        "x": 0.190043,
+        "y": 0.024419,
+        "width": 0.055365,
+        "height": 0.12
+      },
+      "opacity": 0.545
+    },
+    {
+      "id": "btn_options_1770959204284000",
+      "layout": {
+        "x": 0.539543,
+        "y": 0.872638,
+        "width": 0.047351,
+        "height": 0.102632
+      },
+      "opacity": 0.54
+    },
+    {
+      "id": "btn_share_1770959219758000",
+      "layout": {
+        "x": 0.384692,
+        "y": 0.876542,
+        "width": 0.045895,
+        "height": 0.099474
+      },
+      "opacity": 0.475
+    }
+  ],
+  "name": "PS"
+}

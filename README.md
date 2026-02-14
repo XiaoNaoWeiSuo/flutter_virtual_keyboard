@@ -3,6 +3,8 @@
 [![pub package](https://img.shields.io/pub/v/virtual_gamepad_pro.svg)](https://pub.dev/packages/virtual_gamepad_pro)
 [![license](https://img.shields.io/github/license/XiaoNaoWeiSuo/flutter_virtual_keyboard)](https://github.com/XiaoNaoWeiSuo/flutter_virtual_keyboard/blob/main/LICENSE)
 
+Live demo (runs this repo's `example/`): [plugin.qianpc.cn/gamepad](https://plugin.qianpc.cn/gamepad/)
+
 A pure-Flutter virtual controller suite (Joystick / D-Pad / Buttons / Mouse / Keyboard / Macros) with a runtime layout editor.
 
 This package cleanly separates:
@@ -21,8 +23,8 @@ Coordinate system: every control uses normalized percentage coordinates (0.0–1
 ## Highlights
 - Overlay renderer: render `definition + state` with predictable performance
 - Runtime layout editor: drag / resize / opacity; saves a minimal `VirtualControllerState` JSON
-- Strong typed input: `InputBinding` for keyboard & gamepad; supports registering custom buttons
-- Theme layer: `VirtualControlTheme` can override style/layout/label/config at render-time without mutating original data
+- Strongly-typed input: `InputBinding` for keyboard & gamepad; supports registering custom buttons
+- Theme layer: `VirtualControlTheme` can override style/label/config (and other visual props) at render-time without mutating original data
 - Macro suite: record, edit, and serialize an `InputEvent` sequence to power macro buttons
 
 ---
@@ -136,6 +138,12 @@ This repository includes a complete example app (layout management + runtime edi
 Themes are meant to decorate at render-time, not to rewrite your source data.
 You can treat a theme as a pure function: `VirtualControl -> VirtualControl`.
 
+Notes:
+- The overlay resolves **position/size** from `state.layout` (or `definition.layout`) and uses it for geometry. Do not rely on themes to move/resize controls; change `state` (or definition defaults) instead.
+- Themes run **after** `state.config` has been merged into each control's `config`, so you can override config-driven visuals inside `decorate(...)`.
+- Do not change `control.id` inside themes (state lookup and editor selection are ID-based).
+- `VirtualKeyCluster` is decorated once as a cluster, then expanded into keys; expanded keys are decorated again.
+
 ```dart
 final theme = RuleBasedVirtualControlTheme(
   base: const DefaultVirtualControlTheme(),
@@ -171,6 +179,10 @@ void main() {
 }
 ```
 
+Notes:
+- Button `code` is normalized and de-duplicated internally (so the same logical code maps to one typed ID).
+- When recovering controls from state-only IDs like `btn_<code>_...`, the renderer may auto-register unknown codes.
+
 ---
 
 ## Layout Serialization Guide
@@ -203,8 +215,22 @@ Core rule: **Definition is controlled by code; State is the minimal data you per
 ```
 
 ### Render-time merge behavior (important)
-- During rendering, `VirtualControlState.config` is merged into each control's config; some controls (e.g. macro buttons) also apply label/sequence fields.
+- For every control in `definition`, the renderer:
+  - Picks `layout = state.layout ?? definition.layout` and `opacity = state.opacity ?? 1.0`
+  - Merges `state.config` into `control.config` (state overrides definition)
+  - Applies extra macro fields: `config['label']` (non-empty) overrides label; `config['sequence']` (legacy) overrides `VirtualMacroButton.sequence`
+  - Applies `theme.decorate(...)` on the merged control
 - If `state` contains control IDs that do not exist in `definition`, the renderer may attempt best-effort completion by ID prefix (useful for migration/replay).
+- While loading JSON, any state entry with `config.deleted == true` is ignored.
+
+### Dynamic control IDs (best-effort recovery)
+When a `VirtualControlState.id` is not found in `definition`, the overlay may create a control by ID prefix (so that a shared `state` can still render something usable). Common prefixes include:
+- `macro_`
+- `btn_`
+- `mouse_`, `wheel_`, `split_mouse_`, `scroll_stick_`
+- `dpad_`
+- `joystick_wasd_`, `joystick_arrows_`, `joystick_gamepad_left_`, `joystick_gamepad_right_`
+- `key_`
 
 This enables sharing only `state` while still restoring a usable layout, with definition-level style/binding owned by your app.
 
@@ -219,6 +245,7 @@ Renderer entry point (`definition + state`).
 |----------|------|-------------|
 | `definition` | `VirtualControllerLayout` | Control definitions (bindings/styles/default layout). |
 | `state` | `VirtualControllerState` | Editable runtime state (layout/opacity/config), JSON-friendly. |
+| `theme` | `VirtualControlTheme` | Optional render-time decorator (styling/labels/config overrides). |
 | `onInputEvent` | `Function(InputEvent)` | Input event callback. |
 | `opacity` | `double` | Global overlay opacity (0.0–1.0). |
 | `showLabels` | `bool` | Whether to show text labels on controls. |
@@ -234,14 +261,96 @@ Runtime layout editor: edits only `state` (position/size/opacity); does not muta
 | `loadState` | `Future<VirtualControllerState> Function(id)` | Load state (JSON). |
 | `saveState` | `Future<void> Function(id, state)` | Persist state (JSON). |
 | `previewDecorator` | `Function` | Optional hook to decorate preview (e.g. apply theme). |
+| `onClose` | `VoidCallback?` | Called when the user taps the close button. |
+| `readOnly` | `bool` | Read-only mode (viewing only). |
+| `allowAddRemove` | `bool` | Whether adding/removing controls is allowed. |
+| `allowResize` | `bool` | Whether resizing controls is allowed. |
+| `allowMove` | `bool` | Whether moving controls is allowed. |
+| `allowRename` | `bool` | Whether renaming the layout is allowed. |
+| `enabledPaletteTabs` | `Set<VirtualControllerEditorPaletteTab>` | Which palette tabs are shown. |
+| `initialPaletteTab` | `VirtualControllerEditorPaletteTab` | Initially selected palette tab. |
 | `immersive` | `bool` | Immersive mode. |
 
 ### Macro recording & editing
 For normal runtime rendering you only need `VirtualControllerOverlay`. Macro workflows are opt-in tooling:
 
-- `MacroSuitePage`: macro editor (main editor + quick record importer). Updates macro button data (stored in `VirtualControllerState.controls[].config['recordingV2']`).
-- `VirtualControllerMacroRecordingSession`: record input events (optionally mixing real keyboard/mouse), then returns a `recordingV2` JSON list (each item includes `atMs`) for visual editing.
-- `VirtualControllerMacroRecorder`: a recorder page widget with a top-left recording dock (useful for debugging / custom entry points). For a clean renderer-only UI, prefer `VirtualControllerOverlay`.
+- `MacroSuitePage`: macro editor (main editor + recording importer). Typically writes macro data into a macro button state `config`:
+  - `config['recordingV2']`: timeline JSON
+  - `config['label']`: optional display label override
+- `VirtualControllerMacroRecordingSession`: records input events (optionally mixing hardware keyboard/mouse) and returns a `recordingV2` timeline JSON list (each item includes `atMs`) for editing or storage.
+
+#### `recordingV2` timeline format (stored in `VirtualControlState.config['recordingV2']`)
+
+Each item is a JSON object:
+- `atMs` (int): timestamp from the start of playback (milliseconds)
+- `type` (string): event kind
+- `data` (object): payload (depends on `type`)
+
+Supported `type` values and required `data` keys:
+- `keyboard`: `key` (string), `isDown` (bool), optional `modifiers` (string[])
+- `mouse_button`: `button` (string), `isDown` (bool)
+- `mouse_wheel`: `direction` (string), `delta` (int)
+- `mouse_wheel_vector`: `dx` (double), `dy` (double)
+- `gamepad_button`: `button` (string), `isDown` (bool)
+- `gamepad_axis`: `axisId` (string, `left`/`right`), `x` (double), `y` (double)
+- `joystick`: `dx` (double), `dy` (double), `activeKeys` (string[])
+- `custom`: `id` (string), optional `data` (object)
+
+### Type Reference (Complete)
+
+#### Input events (`InputEvent`)
+All events delivered via `onInputEvent` are one of:
+- `KeyboardInputEvent`: `key: KeyboardKey`, `isDown: bool`, `modifiers: List<KeyboardKey>`
+- `MouseButtonInputEvent`: `button: MouseButtonId`, `isDown: bool`
+- `MouseWheelInputEvent`: `direction: MouseWheelDirection`, `delta: int`
+- `MouseWheelVectorInputEvent`: `dx: double`, `dy: double`
+- `JoystickInputEvent`: `dx: double`, `dy: double`, `activeKeys: List<KeyboardKey>`
+- `GamepadButtonInputEvent`: `button: GamepadButtonId`, `isDown: bool`
+- `GamepadAxisInputEvent`: `axisId: GamepadStickId`, `x: double`, `y: double`
+- `CustomInputEvent`: `id: String`, `data: Map<String, dynamic>`
+- `MacroInputEvent`: `sequence: List<TimedInputEvent>` (in-memory only; not stored as a single timeline item)
+
+#### Identifiers / enums (`identifiers.dart`)
+- `MouseButtonId`: `left`, `right`, `middle`
+- `MouseWheelDirection`: `up`, `down`
+- `JoystickMode`: `keyboard`, `gamepad`
+- `GamepadStickId`: `left`, `right`
+- `GamepadAxisId`: `left_x`, `left_y`, `right_x`, `right_y`
+
+#### Bindings (`InputBinding`)
+Serialized binding types:
+- `keyboard`: `KeyboardBinding(key: KeyboardKey, modifiers: List<KeyboardKey>)`
+- `gamepad_button`: `GamepadButtonBinding(GamepadButtonId)`
+
+#### Triggers (`TriggerType`)
+JSON string values:
+- `tap`
+- `hold`
+- `double_tap`
+
+#### Controls (`VirtualControl`)
+Controls that can exist in a `VirtualControllerLayout.controls` list:
+- `VirtualJoystick`
+- `VirtualDpad`
+- `VirtualButton`
+- `VirtualKey`
+- `VirtualKeyCluster`
+- `VirtualMouseButton`
+- `VirtualMouseWheel`
+- `VirtualSplitMouse`
+- `VirtualScrollStick`
+- `VirtualMacroButton`
+- `VirtualCustomControl`
+
+#### Gamepad button IDs (`GamepadButtonId`)
+Built-in `code` values:
+- `a`, `b`, `x`, `y`
+- `lb`, `rb`, `lt`, `rt`
+- `l1`, `l2`, `r1`, `r2`
+- `back`, `start`, `view`, `menu`, `options`, `share`
+- `dpad_up`, `dpad_down`, `dpad_left`, `dpad_right`
+- `l3`, `r3`
+- `triangle`, `circle`, `square`, `cross`
 
 ### `ControlStyle`
 Visual appearance of a control.
@@ -262,8 +371,10 @@ A virtual thumbstick.
 | Property | Type | Description |
 |----------|------|-------------|
 | `deadzone` | `double` | Minimum input value to register (0.0–1.0). Default: 0.1. |
-| `stickType` | `String` | `'left'` or `'right'` (event ID). |
-| `mode` | `String` | `'keyboard'` (WASD keys) or `'gamepad'` (axis events). |
+| `mode` | `JoystickMode` | Keyboard (WASD-like) or gamepad stick mode. |
+| `stickType` | `GamepadStickId` | `left` or `right` (used by `GamepadAxisInputEvent.axisId`). |
+| `keys` | `List<KeyboardKey>` | Up/Left/Down/Right keys for keyboard mode. |
+| `axes` | `List<GamepadAxisId>` | Axis identifiers (mainly for modeling/compat). |
 
 ### `VirtualButton`
 A standard push button.
