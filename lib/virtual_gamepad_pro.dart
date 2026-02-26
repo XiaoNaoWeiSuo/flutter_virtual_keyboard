@@ -1,3 +1,5 @@
+// ignore_for_file: unnecessary_library_name
+
 /// Flutter Virtual Keyboard
 ///
 /// A pure Flutter implementation of a virtual keyboard/controller system.

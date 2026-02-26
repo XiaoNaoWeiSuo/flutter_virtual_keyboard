@@ -2,7 +2,18 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../models/virtual_controller_models.dart';
 
+/// Geometry helpers for virtual controls.
+///
+/// Some controls (e.g. joystick/d-pad/split mouse) occupy a square area even if
+/// the provided layout is not perfectly square. This utility provides a
+/// consistent way to compute the occupied area and a safe inner area for hit
+/// testing/handles.
 class ControlGeometry {
+  /// Returns the actual on-screen rectangle occupied by [control] given its
+  /// normalized [layout] and the current [screenSize].
+  ///
+  /// This may differ from [ControlLayout.toRect] for controls that enforce
+  /// square geometry or minimum aspect ratios.
   static Rect occupiedRect(
     VirtualControl control,
     ControlLayout layout,
@@ -22,6 +33,7 @@ class ControlGeometry {
     return rect;
   }
 
+  /// Returns the normalized layout that corresponds to [occupiedRect].
   static ControlLayout occupiedLayout(
     VirtualControl control,
     ControlLayout layout,
@@ -38,6 +50,8 @@ class ControlGeometry {
     );
   }
 
+  /// Returns a "safe" inner rect within [occupiedRect] for selection handles,
+  /// hit-testing padding, and visual affordances.
   static Rect safeRect(
     VirtualControl control,
     ControlLayout layout,
@@ -54,6 +68,9 @@ class ControlGeometry {
     );
   }
 
+  /// Returns the safe padding inset for a control of a given [size].
+  ///
+  /// This is equivalent to the inset used by [safeRect].
   static EdgeInsets safePadding(VirtualControl control, Size size,
       {double borderPadding = 2.0}) {
     final inset = _safeInsetFor(control, size) + borderPadding;

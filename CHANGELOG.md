@@ -1,3 +1,7 @@
+## 0.3.3
+- **Docs**: Add missing dartdoc for `ControlGeometry`.
+- **Fix**: Adjust `pubspec.yaml` screenshots to avoid oversized GIF files.
+
 ## 0.3.2
 - **Docs**: Refresh README with screenshots/GIFs and production info.
 - **Feat**: Add simple theme-adaptive toast and replace editor SnackBars.

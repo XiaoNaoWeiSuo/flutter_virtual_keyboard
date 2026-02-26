@@ -291,7 +291,7 @@ class _FontWeightJsonCodec {
   }
 
   static String encode(FontWeight w) {
-    return 'w${w.index * 100 + 100}';
+    return 'w${w.value}';
   }
 }
 
