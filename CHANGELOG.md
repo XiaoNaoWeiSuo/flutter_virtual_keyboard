@@ -1,3 +1,7 @@
+## 0.3.4
+- **Feat**: Macro button long-press locks seamless looping playback; tap cancels.
+- **Fix**: Trim macro playback leading empty time (start from first signal).
+
 ## 0.3.3
 - **Docs**: Add missing dartdoc for `ControlGeometry`.
 - **Fix**: Adjust `pubspec.yaml` screenshots to avoid oversized GIF files.

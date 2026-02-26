@@ -273,7 +273,7 @@ class _MacroSuitePageState extends State<MacroSuitePage> {
     final canFinish = _steps.isNotEmpty;
     final slots = _slots;
     final size = MediaQuery.sizeOf(context);
-    final expandedToolWidth = (size.width * 0.26).clamp(200.0, 280.0);
+    final expandedToolWidth = (size.width * 0.15).clamp(200.0, 280.0);
     final toolCollapsedWidth = 64.0 + MediaQuery.paddingOf(context).left;
     final durationMs = slots.isEmpty ? 0 : slots.last.atMs;
     final displayDurationMs = (() {

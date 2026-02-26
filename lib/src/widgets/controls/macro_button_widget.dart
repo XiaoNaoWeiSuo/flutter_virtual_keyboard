@@ -26,6 +26,8 @@ class VirtualMacroButtonWidget extends StatefulWidget {
 
 class _VirtualMacroButtonWidgetState extends State<VirtualMacroButtonWidget> {
   bool _isPressed = false;
+  bool _isLocked = false;
+  bool _didLongPress = false;
   int _playToken = 0;
 
   @override
@@ -36,11 +38,27 @@ class _VirtualMacroButtonWidgetState extends State<VirtualMacroButtonWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final label = widget.control.label.isEmpty ? 'Macro' : widget.control.label;
     return GestureDetector(
       onTapDown: (_) {
-        setState(() => _isPressed = true);
+        setState(() {
+          _isPressed = true;
+          _didLongPress = false;
+        });
         triggerFeedback(widget.control.feedback, true);
-        _executeMacro();
+      },
+      onTap: () {
+        if (_didLongPress) return;
+        if (_isLocked) {
+          _stopLockedLoop();
+          return;
+        }
+        _playOnce();
+      },
+      onLongPressStart: (_) {
+        _didLongPress = true;
+        if (_isLocked) return;
+        _startLockedLoop();
       },
       onTapUp: (_) {
         setState(() => _isPressed = false);
@@ -58,8 +76,9 @@ class _VirtualMacroButtonWidgetState extends State<VirtualMacroButtonWidget> {
           defaultShape: BoxShape.rectangle,
           child: widget.showLabel
               ? ControlLabel(
-                  widget.control.label.isEmpty ? 'Macro' : widget.control.label,
+                  label,
                   style: widget.control.style?.labelStyle,
+                  icon: _isLocked ? Icons.lock : null,
                 )
               : null,
         ),
@@ -67,18 +86,51 @@ class _VirtualMacroButtonWidgetState extends State<VirtualMacroButtonWidget> {
     );
   }
 
-  Future<void> _executeMacro() async {
-    final token = ++_playToken;
-
+  List<Map<String, dynamic>>? _recordingV2() {
     final recordedV2 = widget.control.config['recordingV2'];
     if (recordedV2 is List) {
-      final v2 = recordedV2
+      return recordedV2
           .whereType<Map>()
           .map((e) => Map<String, dynamic>.from(e))
           .toList(growable: false);
-      await _playTimelineFromJson(v2, token: token);
-      return;
     }
+    return null;
+  }
+
+  void _stopLockedLoop() {
+    if (!_isLocked) return;
+    setState(() => _isLocked = false);
+    _playToken++;
+    triggerFeedback(widget.control.feedback, true, type: 'selection');
+  }
+
+  void _startLockedLoop() {
+    final v2 = _recordingV2();
+    if (v2 == null || v2.isEmpty) return;
+
+    setState(() => _isLocked = true);
+    triggerFeedback(widget.control.feedback, true, type: 'selection');
+
+    final token = ++_playToken;
+    _loopPlay(v2, token: token);
+  }
+
+  Future<void> _loopPlay(List<Map<String, dynamic>> v2,
+      {required int token}) async {
+    while (mounted && token == _playToken && _isLocked) {
+      await _playTimelineFromJson(v2, token: token);
+      if (!mounted) return;
+      if (token != _playToken) return;
+      if (!_isLocked) return;
+      await Future<void>.delayed(Duration.zero);
+    }
+  }
+
+  void _playOnce() {
+    final v2 = _recordingV2();
+    if (v2 == null || v2.isEmpty) return;
+    final token = ++_playToken;
+    _playTimelineFromJson(v2, token: token);
   }
 
   Future<void> _playTimelineFromJson(
@@ -91,8 +143,10 @@ class _VirtualMacroButtonWidgetState extends State<VirtualMacroButtonWidget> {
       groups.putIfAbsent(e.atMs, () => <RecordedTimelineEvent>[]).add(e);
     }
     final times = groups.keys.toList()..sort();
+    if (times.isEmpty) return;
 
-    int prevAt = 0;
+    final baseAt = times.first;
+    int prevAt = baseAt;
     for (final atMs in times) {
       if (!mounted) return;
       if (token != _playToken) return;
