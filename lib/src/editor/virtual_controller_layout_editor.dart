@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show SystemUiMode;
+import '../models/identifiers.dart';
 import '../models/virtual_controller_models.dart';
 import 'editor_palette_tab.dart';
 import 'macro/macro_suite_page.dart';
@@ -529,6 +530,30 @@ class _VirtualControllerLayoutEditorState
                               setState(() => _dockCollapsed = false);
                             });
                           }
+                          final selected = c.selectedControl;
+                          final joystick = selected is VirtualJoystick
+                              ? selected
+                              : null;
+                          final isGamepadJoystick =
+                              joystick?.mode == JoystickMode.gamepad;
+                          final isWasdJoystick =
+                              joystick?.mode == JoystickMode.keyboard &&
+                                  joystick?.keys.length == 4 &&
+                                  joystick!.keys[0].normalized().code == 'W' &&
+                                  joystick.keys[1].normalized().code == 'A' &&
+                                  joystick.keys[2].normalized().code == 'S' &&
+                                  joystick.keys[3].normalized().code == 'D';
+                          final stickSide = joystick != null
+                              ? (joystick.config['stickType'] is String
+                                  ? (GamepadStickId.tryParse(
+                                          joystick.config['stickType']
+                                              as String) ??
+                                      joystick.stickType)
+                                  : joystick.stickType)
+                              : GamepadStickId.left;
+                          final stickClickLabel = stickSide == GamepadStickId.left
+                              ? 'LS摇杆重按'
+                              : 'RS摇杆重按';
                           final raw = c.layout;
                           final decorated =
                               widget.previewDecorator?.call(raw) ?? raw;
@@ -569,30 +594,22 @@ class _VirtualControllerLayoutEditorState
                                   isMacro:
                                       c.selectedControl is VirtualMacroButton,
                                   showStickClickToggle:
-                                      c.selectedControl is VirtualJoystick,
-                                  stickClickLabel: c.selectedControl
-                                          is VirtualJoystick
-                                      ? (((((c.selectedControl
-                                                              as VirtualJoystick)
-                                                          .config['stickType']
-                                                      as String?) ??
-                                                  (c.selectedControl
-                                                          as VirtualJoystick)
-                                                      .stickType) ==
-                                              'left')
-                                          ? 'LS摇杆重按'
-                                          : 'RS摇杆重按')
-                                      : '按键',
+                                      isGamepadJoystick,
+                                  stickClickLabel: stickClickLabel,
                                   stickClickEnabled:
                                       c.selectedStickClickEnabled,
                                   onStickClickChanged:
                                       c.setSelectedStickClickEnabled,
                                   showStickLockToggle:
-                                      c.selectedControl is VirtualJoystick,
+                                      isGamepadJoystick,
                                   stickLockLabel: '摇杆锁定',
                                   stickLockEnabled: c.selectedStickLockEnabled,
                                   onStickLockChanged:
                                       c.setSelectedStickLockEnabled,
+                                  showSprintToggle: isWasdJoystick,
+                                  sprintLabel: 'SHIFT',
+                                  sprintEnabled: c.selectedSprintEnabled,
+                                  onSprintChanged: c.setSelectedSprintEnabled,
                                   showDpad3dToggle:
                                       c.selectedControl is VirtualDpad,
                                   dpad3dEnabled: c.selectedDpad3dEnabled,

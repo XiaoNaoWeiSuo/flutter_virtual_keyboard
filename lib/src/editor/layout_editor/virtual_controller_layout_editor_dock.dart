@@ -17,6 +17,10 @@ class _DockPanel extends StatelessWidget {
     required this.stickLockLabel,
     required this.stickLockEnabled,
     required this.onStickLockChanged,
+    required this.showSprintToggle,
+    required this.sprintLabel,
+    required this.sprintEnabled,
+    required this.onSprintChanged,
     required this.showDpad3dToggle,
     required this.dpad3dEnabled,
     required this.onDpad3dChanged,
@@ -59,6 +63,10 @@ class _DockPanel extends StatelessWidget {
   final String stickLockLabel;
   final bool stickLockEnabled;
   final ValueChanged<bool> onStickLockChanged;
+  final bool showSprintToggle;
+  final String sprintLabel;
+  final bool sprintEnabled;
+  final ValueChanged<bool> onSprintChanged;
   final bool showDpad3dToggle;
   final bool dpad3dEnabled;
   final ValueChanged<bool> onDpad3dChanged;
@@ -244,7 +252,7 @@ class _DockPanel extends StatelessWidget {
             ],
             if (hasSelection &&
                 !readOnly &&
-                (showStickClickToggle || showStickLockToggle))
+                (showStickClickToggle || showStickLockToggle || showSprintToggle))
               Padding(
                 padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
                 child: Row(
@@ -257,7 +265,9 @@ class _DockPanel extends StatelessWidget {
                           onChanged: onStickClickChanged,
                         ),
                       ),
-                    if (showStickClickToggle && showStickLockToggle)
+                    if ((showStickClickToggle && showStickLockToggle) ||
+                        (showStickClickToggle && showSprintToggle) ||
+                        (showStickLockToggle && showSprintToggle))
                       const SizedBox(width: 12),
                     if (showStickLockToggle)
                       Expanded(
@@ -265,6 +275,14 @@ class _DockPanel extends StatelessWidget {
                           label: stickLockLabel,
                           value: stickLockEnabled,
                           onChanged: onStickLockChanged,
+                        ),
+                      ),
+                    if (showSprintToggle)
+                      Expanded(
+                        child: _RadioToggle(
+                          label: sprintLabel,
+                          value: sprintEnabled,
+                          onChanged: onSprintChanged,
                         ),
                       ),
                   ],

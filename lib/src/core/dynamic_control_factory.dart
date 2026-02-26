@@ -110,6 +110,8 @@ VirtualControl? dynamicControlFromId(
       config: const {
         'overlayLabels': ['W', 'A', 'S', 'D'],
         'overlayStyle': 'quadrant',
+        'sprintEnabled': true,
+        'sprintKey': 'Shift',
       },
     );
   }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/dynamic_control_factory.dart';
+import '../models/identifiers.dart';
 import '../models/virtual_controller_models.dart';
 import '../utils/control_geometry.dart';
 import '../utils/layout_state_protocol.dart';
@@ -80,6 +81,20 @@ class VirtualControllerLayoutEditorController extends ChangeNotifier {
     if (selected is! VirtualJoystick) return false;
     final v = _state.stateFor(selected.id)?.config['stickLockEnabled'];
     return v == true;
+  }
+
+  bool get selectedSprintEnabled {
+    final selected = _selected;
+    if (selected is! VirtualJoystick) return false;
+    final v = _state.stateFor(selected.id)?.config['sprintEnabled'];
+    if (v is bool) return v;
+    final keys = selected.keys;
+    final isWasd = keys.length >= 4 &&
+        keys[0].normalized().code == 'W' &&
+        keys[1].normalized().code == 'A' &&
+        keys[2].normalized().code == 'S' &&
+        keys[3].normalized().code == 'D';
+    return selected.mode == JoystickMode.keyboard && isWasd;
   }
 
   bool get selectedDpad3dEnabled {
@@ -388,6 +403,27 @@ class VirtualControllerLayoutEditorController extends ChangeNotifier {
     final prevConfig = prev?.config ?? const {};
     final nextConfig = Map<String, dynamic>.from(prevConfig);
     nextConfig['stickLockEnabled'] = enabled;
+    _state = _state.upsert(
+      VirtualControlState(
+        id: selected.id,
+        layout: prev?.layout ?? selected.layout,
+        opacity: prev?.opacity ?? 1.0,
+        config: nextConfig,
+      ),
+    );
+    _layout = _applyState(_definition, _state);
+    _isDirty = true;
+    notifyListeners();
+  }
+
+  void setSelectedSprintEnabled(bool enabled) {
+    if (readOnly) return;
+    final selected = _selected;
+    if (selected is! VirtualJoystick) return;
+    final prev = _state.stateFor(selected.id);
+    final prevConfig = prev?.config ?? const {};
+    final nextConfig = Map<String, dynamic>.from(prevConfig);
+    nextConfig['sprintEnabled'] = enabled;
     _state = _state.upsert(
       VirtualControlState(
         id: selected.id,

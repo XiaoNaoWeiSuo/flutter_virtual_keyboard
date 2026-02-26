@@ -1,3 +1,7 @@
+## 0.3.5
+- **Feat**: Joystick (WASD) now supports "Sprint" mode (hold Shift at edge) instead of click-to-sprint.
+- **Fix**: Editor dock now correctly shows/hides "Stick Click" or "Sprint" toggles based on joystick type.
+
 ## 0.3.4
 - **Feat**: Macro button long-press locks seamless looping playback; tap cancels.
 - **Fix**: Trim macro playback leading empty time (start from first signal).

@@ -122,7 +122,7 @@ class _VirtualMacroButtonWidgetState extends State<VirtualMacroButtonWidget> {
       if (!mounted) return;
       if (token != _playToken) return;
       if (!_isLocked) return;
-      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(const Duration(milliseconds: 16));
     }
   }
 

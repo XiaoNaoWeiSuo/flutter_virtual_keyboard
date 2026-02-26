@@ -32,6 +32,7 @@ class _VirtualJoystickWidgetState extends State<VirtualJoystickWidget> {
 
   // Interaction State
   bool _isStickClickDown = false;
+  bool _isSprintDown = false;
   bool _showStickClickHint = false;
   Offset _stickClickHintOffset = Offset.zero;
   bool _isLocked = false;
@@ -229,6 +230,13 @@ class _VirtualJoystickWidgetState extends State<VirtualJoystickWidget> {
         widget.onInputEvent(KeyboardInputEvent.up(key));
       }
       _activeKeys.clear();
+      if (_isSprintDown) {
+        final sprintKey = _getSprintKey();
+        if (sprintKey != null) {
+          widget.onInputEvent(KeyboardInputEvent.up(sprintKey));
+        }
+        _isSprintDown = false;
+      }
     }
 
     setState(() => _stickPosition = Offset.zero);
@@ -259,6 +267,14 @@ class _VirtualJoystickWidgetState extends State<VirtualJoystickWidget> {
     final angle = math.atan2(delta.dy, delta.dx);
     _currentAngle = angle;
     _currentMagnitude = (distance / maxRadius).clamp(0.0, 1.0);
+
+    if (!useGamepad) {
+      _updateKeyboardSprint(
+        distance: distance,
+        maxRadius: maxRadius,
+        cancelRadius: stickClickCancelRadius,
+      );
+    }
 
     // Haptic Logic & State Machine (Lock)
     if (useGamepad && stickLockEnabled) {
@@ -376,6 +392,75 @@ class _VirtualJoystickWidgetState extends State<VirtualJoystickWidget> {
       widget.onInputEvent(KeyboardInputEvent.down(key));
     }
     _activeKeys = newActiveKeys;
+  }
+
+  KeyboardKey? _getSprintKey() {
+    final raw = widget.control.config['sprintKey']?.toString();
+    final key = (raw == null || raw.trim().isEmpty)
+        ? const KeyboardKey('Shift').normalized()
+        : KeyboardKey(raw).normalized();
+    if (key.code.trim().isEmpty) return null;
+    return key;
+  }
+
+  void _updateKeyboardSprint({
+    required double distance,
+    required double maxRadius,
+    required double cancelRadius,
+  }) {
+    final enabledRaw = widget.control.config['sprintEnabled'];
+    final keys = widget.control.keys;
+    final isWasd = keys.length >= 4 &&
+        keys[0].normalized().code == 'W' &&
+        keys[1].normalized().code == 'A' &&
+        keys[2].normalized().code == 'S' &&
+        keys[3].normalized().code == 'D';
+    final enabled = enabledRaw is bool ? enabledRaw : isWasd;
+    if (!enabled) {
+      if (_isSprintDown) {
+        final sprintKey = _getSprintKey();
+        if (sprintKey != null) {
+          widget.onInputEvent(KeyboardInputEvent.up(sprintKey));
+        }
+        _isSprintDown = false;
+      }
+      return;
+    }
+
+    final sprintKey = _getSprintKey();
+    if (sprintKey == null) return;
+
+    final useMagnitudeThresholds =
+        widget.control.config.containsKey('sprintPressRatio') ||
+            widget.control.config.containsKey('sprintReleaseRatio');
+    final shouldDown = useMagnitudeThresholds
+        ? _currentMagnitude >=
+            ((widget.control.config['sprintPressRatio'] as num?)?.toDouble() ??
+                0.98)
+        : distance >=
+            (maxRadius *
+                ((widget.control.config['sprintEdgeRatio'] as num?)
+                        ?.toDouble() ??
+                    1.0));
+    final shouldUp = useMagnitudeThresholds
+        ? _currentMagnitude <=
+            ((widget.control.config['sprintReleaseRatio'] as num?)?.toDouble() ??
+                0.90)
+        : distance <=
+            (maxRadius *
+                ((widget.control.config['sprintCancelRatio'] as num?)
+                        ?.toDouble() ??
+                    (cancelRadius / maxRadius)));
+
+    if (!_isSprintDown && shouldDown) {
+      widget.onInputEvent(KeyboardInputEvent.down(sprintKey));
+      _isSprintDown = true;
+      return;
+    }
+    if (_isSprintDown && shouldUp) {
+      widget.onInputEvent(KeyboardInputEvent.up(sprintKey));
+      _isSprintDown = false;
+    }
   }
 
   void _emitAxis({
