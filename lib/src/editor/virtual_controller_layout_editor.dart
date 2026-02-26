@@ -7,6 +7,7 @@ import 'virtual_controller_layout_editor_canvas.dart';
 import 'virtual_controller_layout_editor_controller.dart';
 import 'virtual_controller_layout_editor_palette.dart';
 import '../widgets/system_ui_mode_scope.dart';
+import '../widgets/shared/toast.dart';
 
 part 'layout_editor/virtual_controller_layout_editor_dock.dart';
 
@@ -163,14 +164,10 @@ class _VirtualControllerLayoutEditorState
       await widget.saveState(widget.layoutId, c.state);
       c.markSaved();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('已保存')),
-      );
+      showToast(context, '已保存');
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('保存失败: $e')),
-      );
+      showToast(context, '保存失败: $e');
     }
   }
 

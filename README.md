@@ -55,7 +55,7 @@ Editor Signals (examples)
 
 ```yaml
 dependencies:
-  virtual_gamepad_pro: ^0.3.0
+  virtual_gamepad_pro: ^0.3.2
 ```
 
 ---

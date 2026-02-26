@@ -86,6 +86,21 @@ class EditorControlFactory {
     );
   }
 
+  static VirtualMouseButton mouseButtonAsDefaultButton(MouseButtonId button,
+      {ControlLayout? layout}) {
+    final label = button == MouseButtonId.left ? 'L' : 'R';
+    return VirtualMouseButton(
+      id: 'mouse_${button.code}_btn_${DateTime.now().microsecondsSinceEpoch}',
+      label: label,
+      layout: layout ??
+          const ControlLayout(x: 0.78, y: 0.70, width: 0.12, height: 0.12),
+      trigger:
+          button == MouseButtonId.right ? TriggerType.hold : TriggerType.tap,
+      button: button,
+      config: const {'uiStyle': 'button'},
+    );
+  }
+
   static VirtualSplitMouse splitMouse({ControlLayout? layout}) {
     return VirtualSplitMouse(
       id: 'split_mouse_${DateTime.now().microsecondsSinceEpoch}',

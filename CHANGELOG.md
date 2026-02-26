@@ -1,5 +1,7 @@
-## 0.3.1
-- **Feat**: Update documentation for `VirtualControllerOverlay` and `VirtualControllerTheme`.
+## 0.3.2
+- **Docs**: Refresh README with screenshots/GIFs and production info.
+- **Feat**: Add simple theme-adaptive toast and replace editor SnackBars.
+- **Feat**: Add mouse left/right button variants (default button style) and expose them in editor mouse palette.
 
 ## 0.3.0
 - **Feat**: Introduced `VirtualControlTheme` + rule-based theming (`RuleBasedVirtualControlTheme`, `ControlMatchers`) and applied it in `VirtualControllerOverlay`.

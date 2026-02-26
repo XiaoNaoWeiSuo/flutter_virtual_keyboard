@@ -2,7 +2,8 @@ import 'dart:convert';
 
 import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show Clipboard, ClipboardData, rootBundle;
+import 'package:flutter/services.dart'
+    show Clipboard, ClipboardData, rootBundle;
 import 'package:virtual_gamepad_pro/virtual_gamepad_pro.dart';
 
 import 'platform/file_io.dart';
@@ -446,11 +447,12 @@ class _LayoutManagerPageState extends State<LayoutManagerPage> {
                                             ),
                                           );
                                         }
-                                        final definition = buildDefinitionFromState(
-                                          state,
-                                          runtimeDefaults: true,
-                                          fallbackName: _definition.name,
-                                        );
+                                        final definition =
+                                            buildDefinitionFromState(
+                                              state,
+                                              runtimeDefaults: true,
+                                              fallbackName: _definition.name,
+                                            );
                                         return VirtualControllerOverlay(
                                           definition: definition,
                                           state: state,
@@ -949,7 +951,9 @@ class _LayoutRepo {
       final raw = await rootBundle.loadString(_kSampleStateAssetPath);
       final decoded = jsonDecode(raw);
       if (decoded is! Map) return null;
-      return VirtualControllerState.fromJson(Map<String, dynamic>.from(decoded));
+      return VirtualControllerState.fromJson(
+        Map<String, dynamic>.from(decoded),
+      );
     } catch (_) {
       return null;
     }

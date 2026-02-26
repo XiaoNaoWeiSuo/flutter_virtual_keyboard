@@ -173,9 +173,7 @@ class _DockPanel extends StatelessWidget {
                           onRemove();
                           return;
                         }
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('默认控件不可删除')),
-                        );
+                        showToast(context, '默认控件不可删除');
                       },
                       icon: Icon(Icons.delete_outline,
                           color: canRemove ? Colors.redAccent : Colors.white24,

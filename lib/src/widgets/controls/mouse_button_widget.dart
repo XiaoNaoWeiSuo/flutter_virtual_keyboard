@@ -35,6 +35,8 @@ class _VirtualMouseButtonWidgetState extends State<VirtualMouseButtonWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final uiStyle = widget.control.config['uiStyle'];
+    final useDefaultButtonStyle = uiStyle is String && uiStyle == 'button';
     return GestureDetector(
       onTapDown: (_) {
         setState(() => _isPressed = true);
@@ -56,19 +58,21 @@ class _VirtualMouseButtonWidgetState extends State<VirtualMouseButtonWidget> {
         child: ControlContainer(
           isPressed: _isPressed,
           style: widget.control.style,
-          defaultShape: BoxShape.rectangle,
+          defaultShape:
+              useDefaultButtonStyle ? BoxShape.circle : BoxShape.rectangle,
           child: FittedBox(
             fit: BoxFit.scaleDown,
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  widget.control.button == MouseButtonId.left
-                      ? Icons.mouse_outlined
-                      : Icons.mouse,
-                  color: Colors.white,
-                  size: 20,
-                ),
+                if (!useDefaultButtonStyle)
+                  Icon(
+                    widget.control.button == MouseButtonId.left
+                        ? Icons.mouse_outlined
+                        : Icons.mouse,
+                    color: Colors.white,
+                    size: 20,
+                  ),
                 if (widget.showLabel)
                   ControlLabel(widget.control.label,
                       style: widget.control.style?.labelStyle),

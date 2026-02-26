@@ -21,6 +21,30 @@ class VirtualMouseButton extends VirtualControl {
     this.clickType = 'single', // single, double, hold
   }) : super(type: 'mouse_button');
 
+  VirtualMouseButton.leftAsDefaultButton({
+    required super.id,
+    required super.layout,
+    super.style,
+    super.feedback,
+    super.config = const {'uiStyle': 'button'},
+    super.label = 'L',
+    super.trigger = TriggerType.tap,
+  })  : button = MouseButtonId.left,
+        clickType = 'single',
+        super(type: 'mouse_button');
+
+  VirtualMouseButton.rightAsDefaultButton({
+    required super.id,
+    required super.layout,
+    super.style,
+    super.feedback,
+    super.config = const {'uiStyle': 'button'},
+    super.label = 'R',
+    super.trigger = TriggerType.hold,
+  })  : button = MouseButtonId.right,
+        clickType = 'single',
+        super(type: 'mouse_button');
+
   /// Creates a [VirtualMouseButton] from a JSON map.
   factory VirtualMouseButton.fromJson(Map<String, dynamic> json) {
     final config = Map<String, dynamic>.from(json['config'] as Map? ?? {});

@@ -24,6 +24,22 @@ List<VirtualControl> _prototypesFor(VirtualControllerEditorPaletteTab tab) {
     case VirtualControllerEditorPaletteTab.mouseAndJoystick:
       return [
         VirtualMouseButton(
+          id: 'mouse_left_btn',
+          label: 'L',
+          layout: dummy,
+          trigger: TriggerType.tap,
+          button: MouseButtonId.left,
+          config: const {'uiStyle': 'button'},
+        ),
+        VirtualMouseButton(
+          id: 'mouse_right_btn',
+          label: 'R',
+          layout: dummy,
+          trigger: TriggerType.hold,
+          button: MouseButtonId.right,
+          config: const {'uiStyle': 'button'},
+        ),
+        VirtualMouseButton(
           id: 'mouse_middle',
           label: 'M',
           layout: dummy,

@@ -213,48 +213,82 @@ class _MouseJoystickPalette extends StatelessWidget {
           );
         }
 
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        return Column(
           children: [
-            squareTile(
-              onTap: () => onAdd(EditorControlFactory.joystickWASD()),
-              child: VirtualJoystickWidget(
-                control: previewMap['joy_wasd'] as VirtualJoystick,
-                onInputEvent: (_) {},
-              ),
-            ),
-            squareTile(
-              onTap: () => onAdd(EditorControlFactory.joystickArrows()),
-              child: VirtualJoystickWidget(
-                control: previewMap['joy_arrows'] as VirtualJoystick,
-                onInputEvent: (_) {},
-              ),
-            ),
-            squareTile(
-              onTap: () => onAdd(EditorControlFactory.splitMouse()),
-              child: VirtualSplitMouseWidget(
-                control: previewMap['mouse_split'] as VirtualSplitMouse,
-                onInputEvent: (_) {},
-              ),
-            ),
-            squareTile(
-              onTap: () =>
-                  onAdd(EditorControlFactory.mouseButton(MouseButtonId.middle)),
-              child: VirtualMouseButtonWidget(
-                control: previewMap['mouse_middle'] as VirtualMouseButton,
-                onInputEvent: (_) {},
-                showLabel: true,
-              ),
-            ),
             SizedBox(
-              width: 70,
-              child: _ControlTile(
-                onTap: () => onAdd(EditorControlFactory.scrollStick()),
-                padding: const EdgeInsets.all(4),
-                child: VirtualScrollStickWidget(
-                  control: previewMap['scroll_stick'] as VirtualScrollStick,
-                  onInputEvent: (_) {},
-                ),
+              height: rowHeight,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  squareTile(
+                    onTap: () => onAdd(EditorControlFactory.joystickWASD()),
+                    child: VirtualJoystickWidget(
+                      control: previewMap['joy_wasd'] as VirtualJoystick,
+                      onInputEvent: (_) {},
+                    ),
+                  ),
+                  squareTile(
+                    onTap: () => onAdd(EditorControlFactory.joystickArrows()),
+                    child: VirtualJoystickWidget(
+                      control: previewMap['joy_arrows'] as VirtualJoystick,
+                      onInputEvent: (_) {},
+                    ),
+                  ),
+                  squareTile(
+                    onTap: () => onAdd(EditorControlFactory.splitMouse()),
+                    child: VirtualSplitMouseWidget(
+                      control: previewMap['mouse_split'] as VirtualSplitMouse,
+                      onInputEvent: (_) {},
+                    ),
+                  ),
+                  squareTile(
+                    onTap: () => onAdd(EditorControlFactory.scrollStick()),
+                    child: VirtualScrollStickWidget(
+                      control: previewMap['scroll_stick'] as VirtualScrollStick,
+                      onInputEvent: (_) {},
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: gap),
+            SizedBox(
+              height: rowHeight,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  squareTile(
+                    onTap: () => onAdd(
+                        EditorControlFactory.mouseButtonAsDefaultButton(
+                            MouseButtonId.left)),
+                    child: VirtualMouseButtonWidget(
+                      control:
+                          previewMap['mouse_left_btn'] as VirtualMouseButton,
+                      onInputEvent: (_) {},
+                      showLabel: true,
+                    ),
+                  ),
+                  squareTile(
+                    onTap: () => onAdd(
+                        EditorControlFactory.mouseButtonAsDefaultButton(
+                            MouseButtonId.right)),
+                    child: VirtualMouseButtonWidget(
+                      control:
+                          previewMap['mouse_right_btn'] as VirtualMouseButton,
+                      onInputEvent: (_) {},
+                      showLabel: true,
+                    ),
+                  ),
+                  squareTile(
+                    onTap: () => onAdd(
+                        EditorControlFactory.mouseButton(MouseButtonId.middle)),
+                    child: VirtualMouseButtonWidget(
+                      control: previewMap['mouse_middle'] as VirtualMouseButton,
+                      onInputEvent: (_) {},
+                      showLabel: true,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
