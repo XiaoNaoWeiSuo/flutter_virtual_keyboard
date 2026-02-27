@@ -252,7 +252,9 @@ class _DockPanel extends StatelessWidget {
             ],
             if (hasSelection &&
                 !readOnly &&
-                (showStickClickToggle || showStickLockToggle || showSprintToggle))
+                (showStickClickToggle ||
+                    showStickLockToggle ||
+                    showSprintToggle))
               Padding(
                 padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
                 child: Row(

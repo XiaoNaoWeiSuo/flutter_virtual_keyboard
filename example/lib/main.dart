@@ -412,8 +412,8 @@ class _LayoutManagerPageState extends State<LayoutManagerPage> {
                                             _stateRevision++;
                                             final newNames =
                                                 Map<String, String>.from(
-                                                  _names,
-                                                );
+                                              _names,
+                                            );
                                             newNames[id] = state.name ?? id;
                                             _names = newNames;
                                           });
@@ -449,10 +449,10 @@ class _LayoutManagerPageState extends State<LayoutManagerPage> {
                                         }
                                         final definition =
                                             buildDefinitionFromState(
-                                              state,
-                                              runtimeDefaults: true,
-                                              fallbackName: _definition.name,
-                                            );
+                                          state,
+                                          runtimeDefaults: true,
+                                          fallbackName: _definition.name,
+                                        );
                                         return VirtualControllerOverlay(
                                           definition: definition,
                                           state: state,
@@ -534,9 +534,8 @@ class _Sidebar extends StatelessWidget {
                     title: Text(
                       name,
                       style: TextStyle(
-                        fontWeight: isSelected
-                            ? FontWeight.w600
-                            : FontWeight.normal,
+                        fontWeight:
+                            isSelected ? FontWeight.w600 : FontWeight.normal,
                         color: isSelected ? Colors.black : Colors.black87,
                         fontSize: 14,
                       ),

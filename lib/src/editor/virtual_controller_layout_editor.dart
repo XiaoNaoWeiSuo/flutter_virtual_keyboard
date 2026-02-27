@@ -531,9 +531,8 @@ class _VirtualControllerLayoutEditorState
                             });
                           }
                           final selected = c.selectedControl;
-                          final joystick = selected is VirtualJoystick
-                              ? selected
-                              : null;
+                          final joystick =
+                              selected is VirtualJoystick ? selected : null;
                           final isGamepadJoystick =
                               joystick?.mode == JoystickMode.gamepad;
                           final isWasdJoystick =
@@ -545,15 +544,15 @@ class _VirtualControllerLayoutEditorState
                                   joystick.keys[3].normalized().code == 'D';
                           final stickSide = joystick != null
                               ? (joystick.config['stickType'] is String
-                                  ? (GamepadStickId.tryParse(
-                                          joystick.config['stickType']
-                                              as String) ??
+                                  ? (GamepadStickId.tryParse(joystick
+                                          .config['stickType'] as String) ??
                                       joystick.stickType)
                                   : joystick.stickType)
                               : GamepadStickId.left;
-                          final stickClickLabel = stickSide == GamepadStickId.left
-                              ? 'LS摇杆重按'
-                              : 'RS摇杆重按';
+                          final stickClickLabel =
+                              stickSide == GamepadStickId.left
+                                  ? 'LS摇杆重按'
+                                  : 'RS摇杆重按';
                           final raw = c.layout;
                           final decorated =
                               widget.previewDecorator?.call(raw) ?? raw;
@@ -593,15 +592,13 @@ class _VirtualControllerLayoutEditorState
                                   hasSelection: c.selectedControl != null,
                                   isMacro:
                                       c.selectedControl is VirtualMacroButton,
-                                  showStickClickToggle:
-                                      isGamepadJoystick,
+                                  showStickClickToggle: isGamepadJoystick,
                                   stickClickLabel: stickClickLabel,
                                   stickClickEnabled:
                                       c.selectedStickClickEnabled,
                                   onStickClickChanged:
                                       c.setSelectedStickClickEnabled,
-                                  showStickLockToggle:
-                                      isGamepadJoystick,
+                                  showStickLockToggle: isGamepadJoystick,
                                   stickLockLabel: '摇杆锁定',
                                   stickLockEnabled: c.selectedStickLockEnabled,
                                   onStickLockChanged:

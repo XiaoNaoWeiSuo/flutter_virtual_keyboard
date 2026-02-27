@@ -444,7 +444,8 @@ class _VirtualJoystickWidgetState extends State<VirtualJoystickWidget> {
                     1.0));
     final shouldUp = useMagnitudeThresholds
         ? _currentMagnitude <=
-            ((widget.control.config['sprintReleaseRatio'] as num?)?.toDouble() ??
+            ((widget.control.config['sprintReleaseRatio'] as num?)
+                    ?.toDouble() ??
                 0.90)
         : distance <=
             (maxRadius *

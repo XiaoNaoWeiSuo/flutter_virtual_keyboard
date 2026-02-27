@@ -1,3 +1,6 @@
+## 0.3.6
+- **Chore**: Organize project norms, format code, and ensure pub.dev compatibility.
+
 ## 0.3.5
 - **Feat**: Joystick (WASD) now supports "Sprint" mode (hold Shift at edge) instead of click-to-sprint.
 - **Fix**: Editor dock now correctly shows/hides "Stick Click" or "Sprint" toggles based on joystick type.
