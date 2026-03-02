@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show MaxLengthEnforcement, SystemUiMode;
 import '../models/identifiers.dart';
 import '../models/virtual_controller_models.dart';
+import '../theme/virtual_control_theme.dart';
 import 'editor_palette_tab.dart';
 import 'macro/macro_suite_page.dart';
 import 'virtual_controller_layout_editor_canvas.dart';
@@ -37,6 +38,7 @@ class VirtualControllerLayoutEditor extends StatefulWidget {
     required this.loadState,
     required this.saveState,
     this.previewDecorator,
+    this.theme = const DefaultVirtualControlTheme(),
     this.previewDecoratorTabs = const {
       VirtualControllerEditorPaletteTab.keyboard,
       VirtualControllerEditorPaletteTab.mouseAndJoystick,
@@ -79,6 +81,8 @@ class VirtualControllerLayoutEditor extends StatefulWidget {
   /// Useful for applying global themes to palette items.
   final VirtualControllerLayout Function(VirtualControllerLayout layout)?
       previewDecorator;
+
+  final VirtualControlTheme theme;
 
   /// Controls which palette tabs should apply [previewDecorator].
   ///
@@ -127,6 +131,11 @@ class _VirtualControllerLayoutEditorState
   bool _dockCollapsed = false;
   Offset _dockOffset = const Offset(25, 25);
 
+  VirtualControllerLayout _decorateForPreview(VirtualControllerLayout raw) {
+    final decorated = widget.previewDecorator?.call(raw) ?? raw;
+    return decorated.mapControls(widget.theme.decorate);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -151,7 +160,7 @@ class _VirtualControllerLayoutEditorState
       final c = VirtualControllerLayoutEditorController(
         definition: definition,
         state: state,
-        geometryDecorator: widget.previewDecorator,
+        geometryDecorator: _decorateForPreview,
         readOnly: widget.readOnly,
         allowAddRemove: widget.allowAddRemove,
         allowResize: widget.allowResize,
@@ -510,7 +519,7 @@ class _VirtualControllerLayoutEditorState
       builder: (context) {
         return VirtualControllerLayoutEditorPalette(
           tab: tab,
-          previewDecorator: widget.previewDecorator,
+          previewDecorator: _decorateForPreview,
           previewDecoratorTabs: widget.previewDecoratorTabs,
           onAddControl: (control) {
             c.addControl(control);
@@ -599,8 +608,7 @@ class _VirtualControllerLayoutEditorState
                                   ? 'LS摇杆重按'
                                   : 'RS摇杆重按';
                           final raw = c.layout;
-                          final decorated =
-                              widget.previewDecorator?.call(raw) ?? raw;
+                          final decorated = _decorateForPreview(raw);
 
                           return Stack(
                             children: [

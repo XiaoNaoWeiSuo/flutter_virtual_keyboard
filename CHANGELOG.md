@@ -1,3 +1,6 @@
+## 0.3.9
+- **Feat**: Layout editor now supports `VirtualControlTheme` and applies it to previews.
+
 ## 0.3.8
 - **Feat**: Limit editable button label to max 4 characters.
 - **Change**: New layout default name falls back to `unnamed` (instead of `custom_<timestamp>`).
