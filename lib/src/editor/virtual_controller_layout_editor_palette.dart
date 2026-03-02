@@ -22,12 +22,20 @@ class VirtualControllerLayoutEditorPalette extends StatelessWidget {
     required this.tab,
     required this.onAddControl,
     this.previewDecorator,
+    this.previewDecoratorTabs = const {
+      VirtualControllerEditorPaletteTab.keyboard,
+      VirtualControllerEditorPaletteTab.mouseAndJoystick,
+      VirtualControllerEditorPaletteTab.macro,
+      VirtualControllerEditorPaletteTab.xbox,
+      VirtualControllerEditorPaletteTab.ps,
+    },
   });
 
   final VirtualControllerEditorPaletteTab tab;
   final ValueChanged<VirtualControl> onAddControl;
   final VirtualControllerLayout Function(VirtualControllerLayout layout)?
       previewDecorator;
+  final Set<VirtualControllerEditorPaletteTab> previewDecoratorTabs;
 
   @override
   Widget build(BuildContext context) {
@@ -88,7 +96,9 @@ class VirtualControllerLayoutEditorPalette extends StatelessWidget {
 
   Map<String, VirtualControl> _decorate(List<VirtualControl> prototypes) {
     final decorator = previewDecorator;
-    if (decorator == null) return {for (final c in prototypes) c.id: c};
+    if (decorator == null || !previewDecoratorTabs.contains(tab)) {
+      return {for (final c in prototypes) c.id: c};
+    }
     final layout = VirtualControllerLayout(
       schemaVersion: 1,
       name: 'palette',

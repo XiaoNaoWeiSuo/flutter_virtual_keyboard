@@ -81,10 +81,13 @@ class ControlGeometry {
     if (control is VirtualJoystick) return true;
     if (control is VirtualDpad) return true;
     if (control is VirtualSplitMouse) return true;
+    if (control is VirtualScrollStick) return false;
     if (control is VirtualButton) {
       final shape = control.style?.shape ?? BoxShape.circle;
       return shape != BoxShape.rectangle;
     }
+    final shape = control.style?.shape;
+    if (shape != null && shape != BoxShape.rectangle) return true;
     return false;
   }
 

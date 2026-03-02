@@ -9,6 +9,8 @@ class _DockPanel extends StatelessWidget {
     required this.enabledTabs,
     required this.hasSelection,
     required this.isMacro,
+    required this.showEditLabel,
+    required this.onEditLabel,
     required this.showStickClickToggle,
     required this.stickClickLabel,
     required this.stickClickEnabled,
@@ -55,6 +57,8 @@ class _DockPanel extends StatelessWidget {
   final Set<VirtualControllerEditorPaletteTab> enabledTabs;
   final bool hasSelection;
   final bool isMacro;
+  final bool showEditLabel;
+  final VoidCallback onEditLabel;
   final bool showStickClickToggle;
   final String stickClickLabel;
   final bool stickClickEnabled;
@@ -313,6 +317,21 @@ class _DockPanel extends StatelessWidget {
                               fontSize: 12, color: Colors.lightBlueAccent)),
                     ],
                   ))
+            else if (hasSelection && !readOnly && showEditLabel)
+              TextButton(
+                onPressed: onEditLabel,
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Icon(Icons.edit_outlined,
+                        size: 16, color: Colors.lightBlueAccent),
+                    SizedBox(width: 4),
+                    Text('编辑按钮名称',
+                        style: TextStyle(
+                            fontSize: 12, color: Colors.lightBlueAccent)),
+                  ],
+                ),
+              )
           ],
         ),
       ),

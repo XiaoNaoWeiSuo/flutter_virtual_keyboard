@@ -37,6 +37,13 @@ class VirtualControllerLayoutEditor extends StatefulWidget {
     required this.loadState,
     required this.saveState,
     this.previewDecorator,
+    this.previewDecoratorTabs = const {
+      VirtualControllerEditorPaletteTab.keyboard,
+      VirtualControllerEditorPaletteTab.mouseAndJoystick,
+      VirtualControllerEditorPaletteTab.macro,
+      VirtualControllerEditorPaletteTab.xbox,
+      VirtualControllerEditorPaletteTab.ps,
+    },
     this.onClose,
     this.readOnly = false,
     this.allowAddRemove = false,
@@ -72,6 +79,12 @@ class VirtualControllerLayoutEditor extends StatefulWidget {
   /// Useful for applying global themes to palette items.
   final VirtualControllerLayout Function(VirtualControllerLayout layout)?
       previewDecorator;
+
+  /// Controls which palette tabs should apply [previewDecorator].
+  ///
+  /// Useful when you want a global skin preview for some controls (e.g. gamepad)
+  /// while keeping others (e.g. keyboard palette) using the plugin default style.
+  final Set<VirtualControllerEditorPaletteTab> previewDecoratorTabs;
 
   /// Called when the user taps the close button.
   final VoidCallback? onClose;
@@ -138,6 +151,7 @@ class _VirtualControllerLayoutEditorState
       final c = VirtualControllerLayoutEditorController(
         definition: definition,
         state: state,
+        geometryDecorator: widget.previewDecorator,
         readOnly: widget.readOnly,
         allowAddRemove: widget.allowAddRemove,
         allowResize: widget.allowResize,
@@ -208,6 +222,21 @@ class _VirtualControllerLayoutEditorState
     );
     if (next == null) return;
     c.replaceState(c.state.copyWith(name: next.trim()), markDirty: true);
+  }
+
+  Future<void> _editSelectedLabel() async {
+    final c = _controller;
+    if (c == null) return;
+    if (widget.readOnly) return;
+    final selected = c.selectedControl;
+    if (selected == null) return;
+    final next = await _showNameBubble(
+      title: '编辑按钮名称',
+      initialValue: selected.label,
+      hintText: '请输入按钮名称',
+    );
+    if (next == null) return;
+    c.setSelectedLabel(next);
   }
 
   Future<void> _editMacro() async {
@@ -476,6 +505,7 @@ class _VirtualControllerLayoutEditorState
         return VirtualControllerLayoutEditorPalette(
           tab: tab,
           previewDecorator: widget.previewDecorator,
+          previewDecoratorTabs: widget.previewDecoratorTabs,
           onAddControl: (control) {
             c.addControl(control);
             Navigator.of(context).pop();
@@ -531,6 +561,15 @@ class _VirtualControllerLayoutEditorState
                             });
                           }
                           final selected = c.selectedControl;
+                          final canEditLabel = selected != null &&
+                              !widget.readOnly &&
+                              selected is! VirtualJoystick &&
+                              selected is! VirtualMouseWheel &&
+                              selected is! VirtualDpad &&
+                              selected is! VirtualSplitMouse &&
+                              selected is! VirtualScrollStick &&
+                              selected is! VirtualKeyCluster &&
+                              selected is! VirtualMacroButton;
                           final joystick =
                               selected is VirtualJoystick ? selected : null;
                           final isGamepadJoystick =
@@ -592,6 +631,8 @@ class _VirtualControllerLayoutEditorState
                                   hasSelection: c.selectedControl != null,
                                   isMacro:
                                       c.selectedControl is VirtualMacroButton,
+                                  showEditLabel: canEditLabel,
+                                  onEditLabel: _editSelectedLabel,
                                   showStickClickToggle: isGamepadJoystick,
                                   stickClickLabel: stickClickLabel,
                                   stickClickEnabled:

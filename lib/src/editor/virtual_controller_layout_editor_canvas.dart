@@ -228,7 +228,8 @@ class _DashedSelectionPainter extends CustomPainter {
 
     final path = Path();
     if (shape == BoxShape.circle) {
-      path.addOval(insetRect);
+      final r = (insetRect.shortestSide / 2.0).clamp(0.0, double.infinity);
+      path.addOval(Rect.fromCircle(center: insetRect.center, radius: r));
     } else {
       path.addRRect(RRect.fromRectXY(insetRect, radius, radius));
     }
@@ -295,9 +296,20 @@ class _ResizeHandle extends StatelessWidget {
 }
 
 (BoxShape shape, double radius) _selectionShapeFor(VirtualControl control) {
+  if (control.style?.shape == BoxShape.circle) {
+    return (BoxShape.circle, 0.0);
+  }
+
+  if (control is VirtualMouseButton) {
+    final uiStyle = control.config['uiStyle'];
+    if (uiStyle is String && uiStyle == 'button') {
+      return (BoxShape.circle, 0.0);
+    }
+    return (BoxShape.rectangle, control.style?.borderRadius ?? 8.0);
+  }
+
   if (control is VirtualKey ||
       control is VirtualKeyCluster ||
-      control is VirtualMouseButton ||
       control is VirtualMouseWheel ||
       control is VirtualScrollStick ||
       control is VirtualSplitMouse ||

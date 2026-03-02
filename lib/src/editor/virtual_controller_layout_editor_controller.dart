@@ -10,6 +10,7 @@ class VirtualControllerLayoutEditorController extends ChangeNotifier {
   VirtualControllerLayoutEditorController({
     required VirtualControllerLayout definition,
     required VirtualControllerState state,
+    this.geometryDecorator,
     this.readOnly = false,
     this.allowAddRemove = false,
     this.allowResize = true,
@@ -63,6 +64,8 @@ class VirtualControllerLayoutEditorController extends ChangeNotifier {
   final bool allowResize;
   final bool allowMove;
   final bool allowRename;
+  final VirtualControllerLayout Function(VirtualControllerLayout layout)?
+      geometryDecorator;
 
   VirtualControllerLayout get layout => _layout;
   VirtualControllerLayout get definition => _definition;
@@ -250,8 +253,8 @@ class VirtualControllerLayoutEditorController extends ChangeNotifier {
       final dy = delta.dy / canvasSize.height;
       final l = control.layout;
       final tentative = ControlLayout(
-        x: (l.x + dx).clamp(0.0, 1.0 - l.width),
-        y: (l.y + dy).clamp(0.0, 1.0 - l.height),
+        x: l.x + dx,
+        y: l.y + dy,
         width: l.width,
         height: l.height,
       );
@@ -371,6 +374,33 @@ class VirtualControllerLayoutEditorController extends ChangeNotifier {
     );
     _layout = _applyState(_definition, _state);
     _isDirty = true;
+    notifyListeners();
+  }
+
+  void setSelectedLabel(String label) {
+    if (readOnly) return;
+    final selected = _selected;
+    if (selected == null) return;
+    final normalized = label.trim();
+    if (normalized.isEmpty) return;
+    final prev = _state.stateFor(selected.id);
+    final prevConfig = prev?.config ?? const {};
+    final nextConfig = Map<String, dynamic>.from(prevConfig);
+    nextConfig['label'] = normalized;
+    _state = _state.upsert(
+      VirtualControlState(
+        id: selected.id,
+        layout: prev?.layout ?? selected.layout,
+        opacity: prev?.opacity ?? 1.0,
+        config: nextConfig,
+      ),
+    );
+    _layout = _applyState(_definition, _state);
+    _isDirty = true;
+    _selected = _layout.controls
+        .where((c) => c.id == selected.id)
+        .cast<VirtualControl?>()
+        .firstOrNull;
     notifyListeners();
   }
 
@@ -512,8 +542,9 @@ class VirtualControllerLayoutEditorController extends ChangeNotifier {
     Size canvasSize,
   ) {
     final temp = _cloneWithLayout(control, layout);
+    final effective = _decorateForGeometry(temp);
     final occupied =
-        ControlGeometry.occupiedLayout(temp, temp.layout, canvasSize);
+        ControlGeometry.occupiedLayout(effective, effective.layout, canvasSize);
     final x = occupied.x.clamp(0.0, 1.0 - occupied.width);
     final y = occupied.y.clamp(0.0, 1.0 - occupied.height);
     return ControlLayout(
@@ -522,6 +553,21 @@ class VirtualControllerLayoutEditorController extends ChangeNotifier {
       width: occupied.width.clamp(0.02, 1.0),
       height: occupied.height.clamp(0.02, 1.0),
     );
+  }
+
+  VirtualControl _decorateForGeometry(VirtualControl control) {
+    final decorator = geometryDecorator;
+    if (decorator == null) return control;
+    final layout = VirtualControllerLayout(
+      schemaVersion: 1,
+      name: '_geometry',
+      controls: [control],
+    );
+    final decorated = decorator(layout);
+    if (decorated.controls.isEmpty) return control;
+    final c = decorated.controls.first;
+    if (c.id != control.id) return control;
+    return c;
   }
 
   VirtualControl _cloneWithLayout(
@@ -788,10 +834,14 @@ VirtualControl _cloneControlWithOverrides(
   final nextLayout = layout ?? control.layout;
   final nextLabel = label ?? control.label;
   final nextConfig = config ?? control.config;
+  final configLabel = nextConfig['label'];
+  final appliedLabel = (configLabel is String && configLabel.trim().isNotEmpty)
+      ? configLabel.trim()
+      : nextLabel;
   if (control is VirtualButton) {
     return VirtualButton(
       id: control.id,
-      label: nextLabel,
+      label: appliedLabel,
       layout: nextLayout,
       trigger: control.trigger,
       binding: control.binding,
@@ -804,7 +854,7 @@ VirtualControl _cloneControlWithOverrides(
   if (control is VirtualJoystick) {
     return VirtualJoystick(
       id: control.id,
-      label: nextLabel,
+      label: appliedLabel,
       layout: nextLayout,
       trigger: control.trigger,
       config: nextConfig,
@@ -821,7 +871,7 @@ VirtualControl _cloneControlWithOverrides(
   if (control is VirtualKey) {
     return VirtualKey(
       id: control.id,
-      label: nextLabel,
+      label: appliedLabel,
       layout: nextLayout,
       trigger: control.trigger,
       config: nextConfig,
@@ -833,7 +883,7 @@ VirtualControl _cloneControlWithOverrides(
   if (control is VirtualMouseButton) {
     return VirtualMouseButton(
       id: control.id,
-      label: nextLabel,
+      label: appliedLabel,
       layout: nextLayout,
       trigger: control.trigger,
       config: nextConfig,
@@ -846,7 +896,7 @@ VirtualControl _cloneControlWithOverrides(
   if (control is VirtualMouseWheel) {
     return VirtualMouseWheel(
       id: control.id,
-      label: nextLabel,
+      label: appliedLabel,
       layout: nextLayout,
       trigger: control.trigger,
       config: nextConfig,
@@ -859,7 +909,7 @@ VirtualControl _cloneControlWithOverrides(
   if (control is VirtualKeyCluster) {
     return VirtualKeyCluster(
       id: control.id,
-      label: nextLabel,
+      label: appliedLabel,
       layout: nextLayout,
       trigger: control.trigger,
       config: nextConfig,
@@ -900,7 +950,7 @@ VirtualControl _cloneControlWithOverrides(
         : control.enable3D;
     return VirtualDpad(
       id: control.id,
-      label: nextLabel,
+      label: appliedLabel,
       layout: nextLayout,
       trigger: control.trigger,
       config: nextConfig,
@@ -914,7 +964,7 @@ VirtualControl _cloneControlWithOverrides(
   if (control is VirtualScrollStick) {
     return VirtualScrollStick(
       id: control.id,
-      label: nextLabel,
+      label: appliedLabel,
       layout: nextLayout,
       trigger: control.trigger,
       config: nextConfig,
@@ -926,7 +976,7 @@ VirtualControl _cloneControlWithOverrides(
   if (control is VirtualSplitMouse) {
     return VirtualSplitMouse(
       id: control.id,
-      label: nextLabel,
+      label: appliedLabel,
       layout: nextLayout,
       trigger: control.trigger,
       config: nextConfig,
@@ -937,7 +987,7 @@ VirtualControl _cloneControlWithOverrides(
   if (control is VirtualCustomControl) {
     return VirtualCustomControl(
       id: control.id,
-      label: nextLabel,
+      label: appliedLabel,
       layout: nextLayout,
       trigger: control.trigger,
       config: nextConfig,

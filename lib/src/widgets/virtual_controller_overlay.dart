@@ -233,11 +233,15 @@ VirtualControl _applyStateToControl(
   if (state == null || state.config.isEmpty) return control;
   final mergedConfig = Map<String, dynamic>.from(control.config);
   mergedConfig.addAll(state.config);
+  final configLabel = mergedConfig['label'];
+  final appliedLabel = (configLabel is String && configLabel.trim().isNotEmpty)
+      ? configLabel.trim()
+      : control.label;
 
   if (control is VirtualJoystick) {
     return VirtualJoystick(
       id: control.id,
-      label: control.label,
+      label: appliedLabel,
       layout: control.layout,
       trigger: control.trigger,
       config: mergedConfig,
@@ -258,7 +262,7 @@ VirtualControl _applyStateToControl(
         : control.enable3D;
     return VirtualDpad(
       id: control.id,
-      label: control.label,
+      label: appliedLabel,
       layout: control.layout,
       trigger: control.trigger,
       config: mergedConfig,
@@ -273,7 +277,7 @@ VirtualControl _applyStateToControl(
   if (control is VirtualButton) {
     return VirtualButton(
       id: control.id,
-      label: control.label,
+      label: appliedLabel,
       layout: control.layout,
       trigger: control.trigger,
       binding: control.binding,
@@ -287,7 +291,7 @@ VirtualControl _applyStateToControl(
   if (control is VirtualKey) {
     return VirtualKey(
       id: control.id,
-      label: control.label,
+      label: appliedLabel,
       layout: control.layout,
       trigger: control.trigger,
       config: mergedConfig,
@@ -300,7 +304,7 @@ VirtualControl _applyStateToControl(
   if (control is VirtualMouseButton) {
     return VirtualMouseButton(
       id: control.id,
-      label: control.label,
+      label: appliedLabel,
       layout: control.layout,
       trigger: control.trigger,
       config: mergedConfig,
@@ -314,7 +318,7 @@ VirtualControl _applyStateToControl(
   if (control is VirtualMouseWheel) {
     return VirtualMouseWheel(
       id: control.id,
-      label: control.label,
+      label: appliedLabel,
       layout: control.layout,
       trigger: control.trigger,
       config: mergedConfig,
@@ -328,7 +332,7 @@ VirtualControl _applyStateToControl(
   if (control is VirtualKeyCluster) {
     return VirtualKeyCluster(
       id: control.id,
-      label: control.label,
+      label: appliedLabel,
       layout: control.layout,
       trigger: control.trigger,
       config: mergedConfig,
@@ -368,7 +372,7 @@ VirtualControl _applyStateToControl(
   if (control is VirtualScrollStick) {
     return VirtualScrollStick(
       id: control.id,
-      label: control.label,
+      label: appliedLabel,
       layout: control.layout,
       trigger: control.trigger,
       config: mergedConfig,
@@ -381,7 +385,7 @@ VirtualControl _applyStateToControl(
   if (control is VirtualSplitMouse) {
     return VirtualSplitMouse(
       id: control.id,
-      label: control.label,
+      label: appliedLabel,
       layout: control.layout,
       trigger: control.trigger,
       config: mergedConfig,
@@ -393,7 +397,7 @@ VirtualControl _applyStateToControl(
   if (control is VirtualCustomControl) {
     return VirtualCustomControl(
       id: control.id,
-      label: control.label,
+      label: appliedLabel,
       layout: control.layout,
       trigger: control.trigger,
       config: mergedConfig,

@@ -1,3 +1,9 @@
+## 0.3.7
+- **Feat**: Editor supports per-control label override (stored in state config `label`).
+- **Feat**: Mouse palette scroll stick now uses a dedicated vertical slot.
+- **Fix**: Editor selection dashed outline matches circular skins and inner-circle geometry.
+- **Fix**: Editor move/resize bounds follow decorated (actual) geometry to avoid "air wall".
+
 ## 0.3.6
 - **Chore**: Organize project norms, format code, and ensure pub.dev compatibility.
 
