@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show SystemUiMode;
+import 'package:flutter/services.dart' show MaxLengthEnforcement, SystemUiMode;
 import '../models/identifiers.dart';
 import '../models/virtual_controller_models.dart';
 import 'editor_palette_tab.dart';
@@ -234,6 +234,7 @@ class _VirtualControllerLayoutEditorState
       title: '编辑按钮名称',
       initialValue: selected.label,
       hintText: '请输入按钮名称',
+      maxLength: 4,
     );
     if (next == null) return;
     c.setSelectedLabel(next);
@@ -316,6 +317,7 @@ class _VirtualControllerLayoutEditorState
     required String title,
     required String initialValue,
     required String hintText,
+    int? maxLength,
   }) async {
     final textController = TextEditingController(text: initialValue);
     final focusNode = FocusNode();
@@ -382,6 +384,9 @@ class _VirtualControllerLayoutEditorState
                                     focusNode: focusNode,
                                     autofocus: true,
                                     textInputAction: TextInputAction.done,
+                                    maxLength: maxLength,
+                                    maxLengthEnforcement:
+                                        MaxLengthEnforcement.enforced,
                                     style: const TextStyle(
                                       color: Colors.white,
                                       fontSize: 14,
@@ -393,6 +398,7 @@ class _VirtualControllerLayoutEditorState
                                         color: Colors.white
                                             .withValues(alpha: 0.35),
                                       ),
+                                      counterText: '',
                                       filled: true,
                                       fillColor:
                                           Colors.white.withValues(alpha: 0.06),

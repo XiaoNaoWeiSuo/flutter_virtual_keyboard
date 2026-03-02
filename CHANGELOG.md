@@ -1,3 +1,7 @@
+## 0.3.8
+- **Feat**: Limit editable button label to max 4 characters.
+- **Change**: New layout default name falls back to `unnamed` (instead of `custom_<timestamp>`).
+
 ## 0.3.7
 - **Feat**: Editor supports per-control label override (stored in state config `label`).
 - **Feat**: Mouse palette scroll stick now uses a dedicated vertical slot.

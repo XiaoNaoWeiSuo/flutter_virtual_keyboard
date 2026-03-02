@@ -381,7 +381,7 @@ class VirtualControllerLayoutEditorController extends ChangeNotifier {
     if (readOnly) return;
     final selected = _selected;
     if (selected == null) return;
-    final normalized = label.trim();
+    final normalized = _truncateLabel(label.trim());
     if (normalized.isEmpty) return;
     final prev = _state.stateFor(selected.id);
     final prevConfig = prev?.config ?? const {};
@@ -754,6 +754,20 @@ extension<T> on Iterable<T> {
   T? get firstOrNull => isEmpty ? null : first;
 }
 
+String _truncateLabel(String value) {
+  final runes = value.runes.toList(growable: false);
+  if (runes.length <= 4) return value;
+  return String.fromCharCodes(runes.take(4));
+}
+
+String _normalizeDefaultLayoutName(String value) {
+  final n = value.trim();
+  if (n.isEmpty) return 'unnamed';
+  final isCustomAuto = RegExp(r'^custom_\d+$').hasMatch(n);
+  if (isCustomAuto) return 'unnamed';
+  return n;
+}
+
 VirtualControllerLayout _applyState(
   VirtualControllerLayout definition,
   VirtualControllerState state,
@@ -796,7 +810,7 @@ VirtualControllerLayout _applyState(
     schemaVersion: definition.schemaVersion,
     name: (state.name?.trim().isNotEmpty ?? false)
         ? state.name!.trim()
-        : definition.name,
+        : _normalizeDefaultLayoutName(definition.name),
     controls: controls,
   );
 }
