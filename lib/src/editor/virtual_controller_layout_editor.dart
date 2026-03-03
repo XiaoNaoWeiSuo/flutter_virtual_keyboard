@@ -243,7 +243,7 @@ class _VirtualControllerLayoutEditorState
       title: '编辑按钮名称',
       initialValue: selected.label,
       hintText: '请输入按钮名称',
-      maxLength: 4,
+      maxLength: 10,
     );
     if (next == null) return;
     c.setSelectedLabel(next);
