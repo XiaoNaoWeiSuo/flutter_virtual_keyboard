@@ -3,6 +3,7 @@ import 'package:flutter/services.dart' show MaxLengthEnforcement, SystemUiMode;
 import '../models/identifiers.dart';
 import '../models/virtual_controller_models.dart';
 import '../theme/virtual_control_theme.dart';
+import 'ai/layout_ai_command.dart';
 import 'editor_palette_tab.dart';
 import 'macro/macro_suite_page.dart';
 import 'virtual_controller_layout_editor_canvas.dart';
@@ -134,6 +135,22 @@ class _VirtualControllerLayoutEditorState
   VirtualControllerLayout _decorateForPreview(VirtualControllerLayout raw) {
     final decorated = widget.previewDecorator?.call(raw) ?? raw;
     return decorated.mapControls(widget.theme.decorate);
+  }
+
+  Future<void> executeAICommands(List<LayoutAICommand> commands) async {
+    final c = _controller;
+    if (c == null) return;
+    if (widget.readOnly) return;
+    c.executeAICommands(commands);
+    try {
+      await widget.saveState(widget.layoutId, c.state);
+      c.markSaved();
+      if (!mounted) return;
+      showToast(context, 'AI 已应用并保存');
+    } catch (e) {
+      if (!mounted) return;
+      showToast(context, 'AI 保存失败: $e');
+    }
   }
 
   @override

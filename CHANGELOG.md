@@ -1,3 +1,8 @@
+## 0.4.0-dev.1
+- **Feat (Experimental)**: AI tool-calling chat flow with collapsible tool bubbles.
+- **Feat (Experimental)**: Vision flow uses OpenAI-compatible endpoint and shows screenshot previews.
+- **Feat (Experimental)**: Command validation auto-retries silently on invalid codes.
+
 ## 0.3.9
 - **Feat**: Layout editor now supports `VirtualControlTheme` and applies it to previews.
 

@@ -20,6 +20,131 @@ Coordinate system: every control uses normalized percentage coordinates (0.0–1
 
 ---
 
+## AI Layout Editing (New!)
+
+This package now supports AI-driven layout editing. You can integrate an LLM (like OpenAI) to manipulate the layout using natural language.
+
+### Protocol
+
+The AI interacts with the editor using a standardized JSON format. The editor applies changes via `executeAICommands(List<LayoutAICommand> commands)`.
+
+**AI Response (required)**
+
+The model must return a single JSON object:
+
+```json
+{
+  "reply": "human-friendly natural language reply",
+  "commands": [ { ...LayoutAICommand... } ],
+  "agent": {
+    "plan": ["step 1", "step 2"],
+    "step": 0,
+    "continue": true
+  }
+}
+```
+
+Notes:
+- `reply` is required (supports normal chat).
+- `commands` can be empty (no layout change).
+- `agent` is optional; when present, the UI may keep calling the model to execute the plan step-by-step.
+
+**Capabilities (recommended)**
+
+To reduce hallucinated buttons/sticks, provide a system message like:
+
+```json
+{ "capabilities": { "gamepadButtons": [{"code":"a","label":"A"}], "gamepadSticks": ["left","right"] } }
+```
+
+The model should only pick values from these candidates (e.g. button `code`, stick `left/right`) and avoid inventing names.
+
+**LayoutAICommand**
+
+```json
+{
+  "action": "add | remove | move | resize | rename | updateProperty | clear",
+  "type": "button | joystick | dpad | mouse_button | key",
+  "id": "control_id",
+  "label": "Display label",
+  "x": 0.5,
+  "y": 0.5,
+  "width": 0.1,
+  "height": 0.1,
+  "scale": 1.2,
+  "properties": {}
+}
+```
+
+Common `properties`:
+- `button` (string): gamepad button code for `type: "button"` (from capabilities)
+- `mode` (string): `gamepad` or `keyboard` for `type: "joystick"`
+- `stickType` (string): `left` or `right` for `mode: "gamepad"`
+- `scheme` (string): `wasd` or `arrows` for `mode: "keyboard"`
+- `key` (string): keyboard key code for `type: "key"`
+- `opacity` (number): for `action: "updateProperty"` (0.0 to 1.0)
+
+**Examples**
+
+1.  **Add a Button:**
+    ```json
+    { "action": "add", "type": "button", "id": "btn_jump", "label": "Jump", "x": 0.8, "y": 0.7 }
+    ```
+
+2.  **Move a Control:**
+    ```json
+    { "action": "move", "id": "btn_jump", "x": 0.85, "y": 0.65 }
+    ```
+
+3.  **Resize a Control:**
+    ```json
+    { "action": "resize", "id": "btn_jump", "scale": 1.2 }
+    ```
+
+4.  **Rename a Control:**
+    ```json
+    { "action": "rename", "id": "btn_jump", "label": "Fire" }
+    ```
+
+5. **Set Opacity / Update Config:**
+   ```json
+   { "action": "updateProperty", "id": "btn_jump", "properties": { "opacity": 0.6 } }
+   ```
+   ```json
+   { "action": "updateProperty", "id": "btn_jump", "properties": { "config": { "label": "Fire" } } }
+   ```
+
+6. **Add a Keyboard Key:**
+   ```json
+   { "action": "add", "type": "key", "label": "W", "x": 0.35, "y": 0.75, "width": 0.08, "height": 0.08, "properties": { "key": "W" } }
+   ```
+
+**Keyboard keys**
+
+When adding `type: "key"`, put the key code in `properties.key` and avoid inventing names. Recommended codes:
+- Letters: `A`..`Z`
+- Digits: `0`..`9`
+- Arrows: `ArrowUp`, `ArrowDown`, `ArrowLeft`, `ArrowRight`
+- Common: `Space`, `Enter`, `Tab`, `Escape`, `Backspace`
+- Navigation: `Insert`, `Delete`, `Home`, `End`, `PageUp`, `PageDown`
+- Toggles: `CapsLock`, `NumLock`, `ScrollLock`
+- Others: `PrintScreen`, `Pause`
+- Modifiers: `ShiftLeft`, `ControlLeft`, `AltLeft`, `MetaLeft`
+- Optional: `F1`..`F12`
+
+### Integration
+
+1.  **System Prompt:** Use the provided system prompt (see `example/lib/ai/ai_service.dart`) to instruct the AI on how to generate these commands.
+2.  **Execution:**
+    ```dart
+    // Get the controller (or expose it via a GlobalKey in the editor)
+    controller.executeAICommands(commands);
+    ```
+
+See the `example/` directory for a full implementation of an AI Chat Assistant using the OpenAI API.
+
+---
+
 ## Highlights
 - Overlay renderer: render `definition + state` with predictable performance
 - Runtime layout editor: drag / resize / opacity; saves a minimal `VirtualControllerState` JSON
@@ -55,7 +180,7 @@ Editor Signals (examples)
 
 ```yaml
 dependencies:
-  virtual_gamepad_pro: ^0.3.4
+  virtual_gamepad_pro: ^0.3.9
 ```
 
 ---

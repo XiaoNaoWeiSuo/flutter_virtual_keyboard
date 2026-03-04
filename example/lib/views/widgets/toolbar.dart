@@ -15,6 +15,8 @@ class LayoutToolbar extends StatelessWidget {
     required this.onHeightChanged,
     required this.onToggleSidebar,
     required this.isSidebarOpen,
+    required this.onToggleAI,
+    required this.isAIOpen,
   });
 
   final bool isEditing;
@@ -29,6 +31,8 @@ class LayoutToolbar extends StatelessWidget {
 
   final VoidCallback onToggleSidebar;
   final bool isSidebarOpen;
+  final VoidCallback onToggleAI;
+  final bool isAIOpen;
 
   @override
   Widget build(BuildContext context) {
@@ -122,6 +126,21 @@ class LayoutToolbar extends StatelessWidget {
                   ),
                 ],
               ),
+            ),
+          ),
+          const SizedBox(width: 16),
+          IconButton(
+            onPressed: onToggleAI,
+            icon: Icon(
+              Icons.auto_awesome,
+              color: isAIOpen ? Colors.purple : Colors.black54,
+              size: 20,
+            ),
+            tooltip: 'AI 助手',
+            style: IconButton.styleFrom(
+              backgroundColor: isAIOpen ? Colors.purple.withValues(alpha: 0.1) : null,
+              visualDensity: VisualDensity.compact,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
           ),
         ],

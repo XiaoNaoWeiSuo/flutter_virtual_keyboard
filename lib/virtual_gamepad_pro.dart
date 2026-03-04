@@ -43,3 +43,4 @@ export 'src/editor/virtual_controller_layout_editor_palette.dart';
 export 'src/editor/virtual_controller_layout_editor_controller.dart';
 export 'src/editor/virtual_controller_layout_editor.dart';
 export 'src/editor/macro/macro_suite_page.dart';
+export 'src/editor/ai/layout_ai_command.dart';

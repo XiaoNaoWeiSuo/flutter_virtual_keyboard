@@ -4,6 +4,7 @@ import '../models/identifiers.dart';
 import '../models/virtual_controller_models.dart';
 import '../utils/control_geometry.dart';
 import '../utils/layout_state_protocol.dart';
+import 'ai/layout_ai_command.dart';
 import 'resize_direction.dart';
 
 class VirtualControllerLayoutEditorController extends ChangeNotifier {
@@ -122,6 +123,321 @@ class VirtualControllerLayoutEditorController extends ChangeNotifier {
   }
 
   bool get isDirty => _isDirty;
+
+
+  /// Executes a list of AI commands.
+  void executeAICommands(List<LayoutAICommand> commands) {
+    if (readOnly) return;
+    for (final cmd in commands) {
+      switch (cmd.action) {
+        case LayoutAIAction.add:
+          _aiAddControl(cmd);
+          break;
+        case LayoutAIAction.remove:
+          if (cmd.id != null) {
+            _aiRemoveControl(cmd.id!);
+          }
+          break;
+        case LayoutAIAction.move:
+          if (cmd.id != null) {
+            _aiMoveControl(cmd);
+          }
+          break;
+        case LayoutAIAction.resize:
+          if (cmd.id != null) {
+            _aiResizeControl(cmd);
+          }
+          break;
+        case LayoutAIAction.rename:
+          if (cmd.id != null && cmd.label != null) {
+            _aiRenameControl(cmd.id!, cmd.label!);
+          }
+          break;
+        case LayoutAIAction.updateProperty:
+          if (cmd.id != null) {
+            _aiUpdateProperty(cmd);
+          }
+          break;
+        case LayoutAIAction.clear:
+          _aiClear();
+          break;
+        default:
+          break;
+      }
+    }
+    notifyListeners();
+  }
+
+  void _aiAddControl(LayoutAICommand cmd) {
+    if (!allowAddRemove) return;
+    final id = cmd.id;
+    var type = cmd.type?.trim().toLowerCase();
+    if (type == null || type.isEmpty) {
+      final lowerId = id?.trim().toLowerCase() ?? '';
+      if (lowerId.startsWith('btn_')) {
+        type = 'button';
+      } else if (lowerId.startsWith('joy_') || lowerId.startsWith('joystick_')) {
+        type = 'joystick';
+      } else if (lowerId.startsWith('dpad_')) {
+        type = 'dpad';
+      } else if (lowerId.startsWith('mouse_')) {
+        type = 'mouse_button';
+      } else if (lowerId.startsWith('key_')) {
+        type = 'key';
+      }
+    }
+    final label = cmd.label?.trim();
+    final Map<String, dynamic>? config =
+        (label != null && label.isNotEmpty) ? {'label': label} : null;
+    final props = cmd.properties ?? const <String, dynamic>{};
+    VirtualControl? control;
+
+    ControlLayout createLayout() => ControlLayout(
+          x: (cmd.x ?? 0.4).clamp(0.0, 0.9),
+          y: (cmd.y ?? 0.4).clamp(0.0, 0.9),
+          width: (cmd.width ?? 0.1).clamp(0.05, 0.5),
+          height: (cmd.height ?? 0.1).clamp(0.05, 0.5),
+        );
+
+    if (type == 'button') {
+      final rawCode = props['button'] ?? props['code'];
+      final parts = id?.split('_') ?? const <String>[];
+      final inferred = parts.length >= 2 ? parts[1] : null;
+      final code = rawCode?.toString().trim().isNotEmpty == true
+          ? rawCode.toString().trim()
+          : (inferred?.trim().isNotEmpty == true ? inferred!.trim() : 'a');
+      final btn = InputBindingRegistry.tryGetGamepadButton(code) ??
+          InputBindingRegistry.tryGetGamepadButton('a')!;
+      final nextId = (id != null && id.startsWith('btn_') && id.split('_').length >= 2)
+          ? id
+          : 'btn_${btn.code}_${DateTime.now().microsecondsSinceEpoch}';
+      control = VirtualButton(
+        id: nextId,
+        label: label ?? btn.label ?? btn.code,
+        layout: createLayout(),
+        trigger: TriggerType.tap,
+        binding: GamepadButtonBinding(btn),
+        config: config ?? const {},
+      );
+    } else if (type == 'joystick') {
+      final modeRaw = props['mode']?.toString().trim().toLowerCase();
+      final stickRaw = props['stickType']?.toString() ?? '';
+      final stick = GamepadStickId.tryParse(stickRaw);
+      if (modeRaw == 'keyboard') {
+        final scheme = props['scheme']?.toString().trim().toLowerCase();
+        final prefix = scheme == 'arrows' ? 'joystick_arrows_' : 'joystick_wasd_';
+        final nextId = (id != null && id.startsWith(prefix))
+            ? id
+            : '$prefix${DateTime.now().microsecondsSinceEpoch}';
+        control = VirtualJoystick(
+          id: nextId,
+          label: label ?? '',
+          layout: createLayout(),
+          trigger: TriggerType.hold,
+          config: config ?? const {},
+        );
+      } else {
+        final useStick = stick ?? GamepadStickId.left;
+        final prefix = useStick == GamepadStickId.right
+            ? 'joystick_gamepad_right_'
+            : 'joystick_gamepad_left_';
+        final nextId = (id != null && id.startsWith(prefix))
+            ? id
+            : '$prefix${DateTime.now().microsecondsSinceEpoch}';
+        final base = useStick == GamepadStickId.right
+            ? const {
+                'centerLabel': 'R',
+                'overlayStyle': 'center',
+                'stickClickEnabled': false,
+                'stickLockEnabled': false,
+              }
+            : const {
+                'centerLabel': 'L',
+                'overlayStyle': 'center',
+                'stickClickEnabled': false,
+                'stickLockEnabled': false,
+              };
+        final nextConfig = <String, dynamic>{...base, ...(config ?? const {})};
+        control = VirtualJoystick(
+          id: nextId,
+          label: label ?? (useStick == GamepadStickId.right ? 'RS' : 'LS'),
+          layout: createLayout(),
+          trigger: TriggerType.hold,
+          mode: JoystickMode.gamepad,
+          stickType: useStick,
+          config: nextConfig,
+        );
+      }
+    } else if (type == 'dpad') {
+      final enable3D = props['enable3D'];
+      control = VirtualDpad(
+        id: id ?? 'dpad_${DateTime.now().millisecondsSinceEpoch}',
+        label: label ?? 'D-Pad',
+        layout: createLayout(),
+        trigger: TriggerType.hold,
+        enable3D: enable3D is bool ? enable3D : false,
+        config: config ?? const {},
+      );
+    } else if (type == 'mouse_button') {
+      final rawBtn = props['button'] ?? id?.split('_').last;
+      final parsed = rawBtn is String ? MouseButtonId.tryParse(rawBtn) : null;
+      final button = parsed ?? MouseButtonId.left;
+      final clickType = props['clickType']?.toString();
+      control = VirtualMouseButton(
+        id: id ?? 'mouse_${button.code}_${DateTime.now().millisecondsSinceEpoch}',
+        label: label ?? button.code.toUpperCase(),
+        layout: createLayout(),
+        trigger: TriggerType.tap,
+        button: button,
+        clickType: clickType ?? 'single',
+        config: config ?? const {},
+      );
+    } else if (type == 'key') {
+      final rawKey = props['key'] ?? label ?? id?.split('_').last ?? '';
+      final key = KeyboardKey(rawKey.toString()).normalized();
+      final encodedKey = Uri.encodeComponent(key.code);
+      final encodedMods = 'none';
+      final nextId = (id != null && id.split('_').length >= 4)
+          ? id
+          : 'key_${encodedKey}_${encodedMods}_${DateTime.now().microsecondsSinceEpoch}';
+      control = VirtualKey(
+        id: nextId,
+        label: label ?? key.code,
+        layout: createLayout(),
+        trigger: TriggerType.tap,
+        binding: KeyboardBinding(key: key),
+        config: config ?? const {},
+      );
+    }
+
+    if (control != null) {
+      addControl(control);
+    }
+  }
+
+  void _aiRemoveControl(String id) {
+    if (!allowAddRemove) return;
+    _state = _state.remove(id);
+    _rebuildDefinition();
+    _layout = _applyState(_definition, _state);
+    _isDirty = true;
+  }
+
+  void _aiMoveControl(LayoutAICommand cmd) {
+    if (!allowMove) return;
+    final id = cmd.id!;
+    _mutateControl(id, (control) {
+      final l = control.layout;
+      final newX = cmd.x ?? l.x;
+      final newY = cmd.y ?? l.y;
+      return _cloneWithLayout(
+        control,
+        ControlLayout(
+          x: newX.clamp(0.0, 1.0 - l.width),
+          y: newY.clamp(0.0, 1.0 - l.height),
+          width: l.width,
+          height: l.height,
+        ),
+      );
+    });
+  }
+
+  void _aiResizeControl(LayoutAICommand cmd) {
+    if (!allowResize) return;
+    final id = cmd.id!;
+    _mutateControl(id, (control) {
+      final l = control.layout;
+      var newW = cmd.width ?? l.width;
+      var newH = cmd.height ?? l.height;
+      if (cmd.scale != null) {
+        newW *= cmd.scale!;
+        newH *= cmd.scale!;
+      }
+      return _cloneWithLayout(
+        control,
+        ControlLayout(
+          x: l.x,
+          y: l.y,
+          width: newW.clamp(0.05, 1.0 - l.x),
+          height: newH.clamp(0.05, 1.0 - l.y),
+        ),
+      );
+    });
+  }
+
+  void _aiRenameControl(String id, String label) {
+    final idx = _layout.controls.indexWhere((c) => c.id == id);
+    if (idx == -1) return;
+    final prev = _state.stateFor(id);
+    final prevConfig = prev?.config ?? const {};
+    final nextConfig = Map<String, dynamic>.from(prevConfig);
+    nextConfig['label'] = label;
+
+    _state = _state.upsert(
+      VirtualControlState(
+        id: id,
+        layout: prev?.layout ?? _layout.controls[idx].layout,
+        opacity: prev?.opacity ?? 1.0,
+        config: nextConfig,
+      ),
+    );
+    _layout = _applyState(_definition, _state);
+    _isDirty = true;
+  }
+
+  void _aiUpdateProperty(LayoutAICommand cmd) {
+    final id = cmd.id!;
+    final props = cmd.properties;
+    if (props == null || props.isEmpty) return;
+
+    final prev = _state.stateFor(id);
+    final idx = _layout.controls.indexWhere((c) => c.id == id);
+    if (prev == null && idx == -1) return;
+
+    final layout = prev?.layout ?? _layout.controls[idx].layout;
+    final opacityRaw = props['opacity'];
+    final nextOpacity = opacityRaw is num
+        ? opacityRaw.toDouble().clamp(0.0, 1.0)
+        : (prev?.opacity ?? 1.0);
+
+    final prevConfig = prev?.config ?? const {};
+    final nextConfig = Map<String, dynamic>.from(prevConfig);
+
+    final configRaw = props['config'];
+    if (configRaw is Map) {
+      nextConfig.addAll(Map<String, dynamic>.from(configRaw));
+    }
+
+    _state = _state.upsert(
+      VirtualControlState(
+        id: id,
+        layout: layout,
+        opacity: nextOpacity,
+        config: nextConfig,
+      ),
+    );
+    _layout = _applyState(_definition, _state);
+    _isDirty = true;
+  }
+
+  void _aiClear() {
+    if (!allowAddRemove) return;
+    _state = _state.copyWith(controls: []);
+    _rebuildDefinition();
+    _layout = _applyState(_definition, _state);
+    _isDirty = true;
+  }
+
+  void _rebuildDefinition() {
+    if (allowAddRemove) {
+      _definition = buildDefinitionFromState(
+        _state,
+        runtimeDefaults: false,
+        fallbackName: _definition.name,
+      );
+      _definitionIds = _definition.controls.map((c) => c.id).toSet();
+    }
+  }
 
   void replaceState(VirtualControllerState state, {bool markDirty = false}) {
     _state = state;
@@ -816,16 +1132,22 @@ VirtualControllerLayout _applyState(
 }
 
 Map<String, dynamic> _extractStateConfig(VirtualControl control) {
+  final label = control.config['label'];
+  final hasLabel = label is String && label.trim().isNotEmpty;
   if (control is VirtualJoystick) {
     final enabled = control.config['stickClickEnabled'];
     final lockEnabled = control.config['stickLockEnabled'];
     return {
+      if (hasLabel) 'label': label.trim(),
       'stickClickEnabled': enabled is bool ? enabled : false,
       'stickLockEnabled': lockEnabled is bool ? lockEnabled : false,
     };
   }
   if (control is VirtualDpad) {
-    return {'enable3D': control.enable3D};
+    return {
+      if (hasLabel) 'label': label.trim(),
+      'enable3D': control.enable3D,
+    };
   }
   if (control is VirtualMacroButton) {
     final recordingV2 = control.config['recordingV2'];
@@ -834,6 +1156,9 @@ Map<String, dynamic> _extractStateConfig(VirtualControl control) {
       if (label is String && label.trim().isNotEmpty) 'label': label.trim(),
       if (recordingV2 is List) 'recordingV2': recordingV2,
     };
+  }
+  if (hasLabel) {
+    return {'label': label.trim()};
   }
   return const {};
 }
