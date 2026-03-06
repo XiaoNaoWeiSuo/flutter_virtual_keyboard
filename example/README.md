@@ -13,3 +13,7 @@ flutter run
 ```
 
 默认会进入“布局管理”页面，可在不同预设分辨率下预览布局效果。
+
+## Web SDK
+
+iframe 集成与 `postMessage` 协议说明见：`web/layout_editor_sdk.md`。

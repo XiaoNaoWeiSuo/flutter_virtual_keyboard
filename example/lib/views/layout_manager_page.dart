@@ -1,7 +1,7 @@
 import 'dart:convert';
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
@@ -15,6 +15,10 @@ import 'widgets/ai_chat_panel.dart';
 import 'widgets/grid_paper.dart';
 import 'widgets/sidebar.dart';
 import 'widgets/toolbar.dart';
+
+// Conditional import for JS Interop
+import '../platform/web_interop_stub.dart'
+    if (dart.library.js_interop) '../platform/web_interop.dart';
 
 class LayoutManagerPage extends StatefulWidget {
   const LayoutManagerPage({super.key});
@@ -91,6 +95,61 @@ class _LayoutManagerPageState extends State<LayoutManagerPage> {
       _names = names;
       _loading = false;
     });
+
+    // Initialize JS SDK
+    if (kIsWeb) {
+      initWebInterop(
+        onExport: () {
+          // Note: This is synchronous in JS context, but _getCurrentLayoutJson is async.
+          // For simplicity, we use the cached _aiLayoutJson if available, or return a placeholder.
+          return _aiLayoutJson;
+        },
+        onImport: (jsonStr) {
+          _importFromJson(jsonStr);
+        },
+        onList: () {
+          return _ids.map((id) => {'id': id, 'name': _names[id] ?? id}).toList();
+        },
+        onSelect: (id) {
+          _select(id);
+        },
+        onToggleEdit: () {
+          _toggleEdit();
+        },
+      );
+    }
+    
+    // Initial sync
+    _refreshAiLayoutJson();
+  }
+
+  Future<void> _importFromJson(String content, {String? filename}) async {
+    try {
+      final dynamic decoded = jsonDecode(content);
+      if (decoded is! Map) return;
+      final state = VirtualControllerState.fromJson(
+        Map<String, dynamic>.from(decoded),
+      );
+      final name = filename?.replaceAll(RegExp(r'\.state\.json$'), '') ??
+          state.name ??
+          'imported';
+      final id = await _repo.importAs(name, state);
+      final ids = await _repo.listIds();
+      await _select(id);
+      if (!mounted) return;
+      setState(() {
+        _ids = ids;
+        final newNames = Map<String, String>.from(_names);
+        newNames[id] = state.name ?? id;
+        _names = newNames;
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('导入失败: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _select(String id) async {
@@ -103,6 +162,7 @@ class _LayoutManagerPageState extends State<LayoutManagerPage> {
     if (_isAIOpen) {
       _refreshAiLayoutJson();
     }
+    notifyLayoutChanged(id, _names[id] ?? id);
   }
 
   Future<void> _createNew({bool duplicate = false}) async {
@@ -118,6 +178,19 @@ class _LayoutManagerPageState extends State<LayoutManagerPage> {
       newNames[id] = state.name ?? id;
       _names = newNames;
     });
+  }
+
+  Future<void> _copyCurrent() async {
+    final json = await _getCurrentLayoutJson();
+    await Clipboard.setData(ClipboardData(text: json));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('布局 JSON 已复制到剪贴板'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
   Future<void> _deleteCurrent() async {
@@ -384,6 +457,7 @@ class _LayoutManagerPageState extends State<LayoutManagerPage> {
                 onDelete: _deleteCurrent,
                 onExport: _exportCurrent,
                 onImport: _importNew,
+                onCopy: _copyCurrent,
               ),
             ),
           ),

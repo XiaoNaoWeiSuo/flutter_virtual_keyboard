@@ -13,6 +13,7 @@ class LayoutSidebar extends StatelessWidget {
     required this.onDelete,
     required this.onExport,
     required this.onImport,
+    required this.onCopy,
   });
 
   final String selectedId;
@@ -24,6 +25,7 @@ class LayoutSidebar extends StatelessWidget {
   final VoidCallback onDelete;
   final VoidCallback onExport;
   final VoidCallback onImport;
+  final VoidCallback onCopy;
 
   @override
   Widget build(BuildContext context) {
@@ -189,6 +191,11 @@ class LayoutSidebar extends StatelessWidget {
                         );
                       },
                       menuChildren: [
+                        SidebarMenuItem(
+                          onPressed: onCopy,
+                          icon: CupertinoIcons.doc_on_clipboard,
+                          label: '一键复制 JSON',
+                        ),
                         SidebarMenuItem(
                           onPressed: onDuplicate,
                           icon: CupertinoIcons.doc_on_doc,
